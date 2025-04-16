@@ -1,0 +1,1108 @@
+
+/*** ============================================================================================================ ***/
+/*** APTECH Gauss code for the article "When to Be Discrete: The Importance of Time Formulation in the Modeling of Extreme Events in Finance" 
+by Katarzyna Bien-Barkowska & Rodrigo Herrera ***/
+/*** ============================================================================================================ ***/
+
+/*** Author of the script: Katarzyna Bień-Barkowska *****/
+
+/*** This script replicates the simulation results in Section 4 "Competing hazard functions: A Monte Carlo study" ***/	
+
+
+/*************************** Intro *****************************************/
+
+new; 
+cls;
+
+declare __my_code_start_seconds = 0;
+
+startCodeTimer();
+
+
+@ Loading the APTECH Gauss library for the maximum likelihood estimation @
+
+library maxlik;
+
+@ Preparing the working folder for the gss-file @
+
+working_folder=__FILE_DIR;
+
+retc={}; 
+
+burned = 500; @ Burning period @
+
+@ Important! Choose a Data Generating Process which you want to simulate: a=1. DGP I , i.e., DBSPOT (Discrete Burr SPOT) model; a=2. DGP II , i.e., DGGSPOT (Discrete Generalized Gamma SPOT) model @
+
+a=2; 
+
+if a==1;
+	
+model ="DBurr";	
+	
+elseif a==2;
+
+model ="DGGamma";	
+
+endif;
+
+@ Setting the true parameter values for the DGP I and DGP II @
+
+if a==1;
+true_theta = 0.3|0.9|0.4|0.95|3;
+elseif a==2;
+true_theta = 0|0.9|0.4|2.5|0.5;
+endif;
+
+    
+
+ls=1;
+
+do while ls <=3;
+    
+@ Defining the sample sizes of the series used in the simulation experiment @
+
+N1 = 250|500|2000;
+
+@ Defining the number of Monte Carlo replications @
+Liczba_sym = 1200;
+
+n=N1[ls];
+
+@ Setting the seed for the sake of replicability of the obtained results @
+
+if n==N1[1];
+if model=="DBurr";
+state=2452; @Burr@
+elseif model=="DGGamma";
+state=2672; @Gamma@
+endif;
+elseif n==N1[2];
+state=2345;
+elseif n==N1[3];
+state=3352;
+endif;
+
+
+  end_par_series_DBurr ={};
+  end_par_series_Burr ={};
+  end_par_series_GGamma ={};
+  end_par_series_DGGamma ={};
+ 
+  
+ for j(1,Liczba_sym,1);
+  
+  
+if a==1;	  
+	  
+	omega = true_theta[1];
+    beta1 = true_theta[2];
+    alpha1 = true_theta[3];
+    kappa = true_theta[4];
+    sigma2 = true_theta[5];
+
+elseif a==2;	  
+	  
+	omega = true_theta[1];
+    beta1 = true_theta[2];
+    alpha1 = true_theta[3];
+    alphagg = true_theta[4];
+    gammagg = true_theta[5];
+endif;
+
+
+   if a==1; @ Simulate the series from the DGP I @
+	
+	{data,state} = SIM_dBURR(n,omega,beta1,alpha1,kappa,sigma2, burned); 
+
+  	
+	  
+   elseif a==2;   	 @ Simulate the series from the DGP II @
+    
+	data = SIM_dGamma(n,omega,beta1,alpha1,alphagg,gammagg, burned);	
+   
+  @ We have to tranform the initial parameters for the maxlik procedure to obay necessary bounds in the parameter space @  
+       
+   start=(true_theta[1])|ln(true_theta[2]/(1-true_theta[2]))|ln(true_theta[3])|ln(true_theta[4])|ln(true_theta[5]);
+   endif;
+      
+
+	
+	 
+if a==1;	 
+	  @ +++++ Estimation of the DBurr SPOT model, i.e., DGP I +++++ @
+      
+	 
+	 _max_MaxIters=200;
+     _max_Algorithm=5;
+	
+    @ We have to tranform the initial parameters for the maxlik procedure to obay necessary bounds in the parameter space @
+    
+     start=(true_theta[1])|ln(true_theta[2]/(1-true_theta[2]))|ln(true_theta[3])|ln(true_theta[4])|ln(true_theta[5]);
+    
+	 {end_par,function,gradient,cov,retcode} =maxprt(maxlik(data,0,&li_Burr_discrete_maxlik,start));
+      
+	  end_par_new = end_par[1]|exp(end_par[2])/(1+exp(end_par[2]))|exp(end_par[3])|exp(end_par[4])|exp(end_par[5]);
+	   
+      if retcode==0;
+		  
+	  end_par_series_DBurr=end_par_series_DBurr|end_par_new';
+		  
+	  endif;
+    
+    
+      @ +++++ Estimation of the Burr SPOT model, i.e., misspecified model with the continuous Burr distribution +++++ @	
+    
+    
+      start=(true_theta[1])|ln(true_theta[2]/(1-true_theta[2]))|ln(true_theta[3])|ln(true_theta[4])|ln(1/true_theta[5]);
+    
+	  {end_par,function,gradient,cov,retcode} =maxprt(maxlik(data,0,&li_Burr_maxlik,start));
+      
+	  if retcode==0;
+		  
+	  retc=retc|retcode;
+	  end_par_new = end_par[1]|exp(end_par[2])/(1+exp(end_par[2]))|exp(end_par[3])|exp(end_par[4])|1/exp(end_par[5]);
+	  
+	  end_par_series_Burr=end_par_series_Burr|end_par_new';
+	  endif;
+	  
+	  
+elseif a==2;	  
+	  
+	  @ +++++ Estimation of the DGG SPOT model, i.e., DGP II +++++ @
+	
+	  _max_active=ones(5,1);
+	  _max_active[1]=0;
+	  _max_Algorithm=2;
+	  _max_MaxIters=150;
+	
+	  {end_par,function,gradient,cov,retcode} =maxprt(maxlik(data,0,&li_DGGamma_maxlik,start));
+	  
+	  end_par_new = (end_par[1])|exp(end_par[2])/(1+exp(end_par[2]))|exp(end_par[3])|exp(end_par[4])|exp(end_par[5]);
+	  
+	  if retcode==0;
+		  
+	  end_par_series_DGGamma=end_par_series_DGGamma|end_par_new';
+		  
+	  endif;
+	  @ +++++ Estimation of the GG SPOT model, i.e., misspecified model with the continuous gamma distribution +++++ @
+	  
+	  _max_active=ones(5,1);
+	  _max_active[1]=0;
+	  _max_Algorithm=2;
+	  _max_MaxIters=200;
+	
+	  {end_par,function,gradient,cov,retcode} =maxprt(maxlik(data,0,&li_GGamma_maxlik,start));
+	  
+	  end_par_new = end_par[1]|exp(end_par[2])/(1+exp(end_par[2]))|exp(end_par[3])|exp(end_par[4])|exp(end_par[5]);
+	  
+	  if retcode==0;
+		  
+	  retc=retc|retcode;
+		  
+	  end_par_series_GGamma=end_par_series_GGamma|end_par_new';
+	  
+      endif;
+	  
+endif;
+
+  endfor;
+  
+
+ 
+ if a==1;
+ 	 
+	@ Saving the generated data@ 
+	 
+	 if n==N1[3];
+		 
+		 fik=saved(end_par_series_Burr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_2000.dat",0); 
+         fik=saved(end_par_series_DBurr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_2000.dat",0); 
+         
+         
+         end_par_series_Burr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_2000.dat");
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_2000.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_Burr;    
+        
+         OUTPUT OFF;       
+  
+         
+         end_par_series_DBurr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_2000.dat");
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_2000.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DBurr;    
+        
+         OUTPUT OFF; 
+	 
+	 endif;
+	 
+    if n==N1[2];
+		 
+		 fik=saved(end_par_series_Burr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_500.dat",0); 
+         fik=saved(end_par_series_DBurr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_500.dat",0); 
+	 
+        
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_500.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_Burr;    
+        
+         OUTPUT OFF;       
+  
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_500.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DBurr;    
+        
+         OUTPUT OFF;      
+        
+     
+	 endif;	 
+	 
+	 if n==N1[1];
+		 
+		 fik=saved(end_par_series_Burr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_250.dat",0); 
+         fik=saved(end_par_series_DBurr, working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_250.dat",0); 
+
+         end_par_series_Burr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_250.dat");
+
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_250.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_Burr;    
+        
+         OUTPUT OFF;       
+  
+         
+         end_par_series_DBurr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_250.dat");
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_250.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DBurr;    
+        
+         OUTPUT OFF; 
+
+	 
+	 endif;	
+	 
+ elseif a==2;
+  
+	 if n==N1[3];
+		 
+		 fik=saved(end_par_series_GGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_2000.dat",0); 
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_2000.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_GGamma;    
+        
+         OUTPUT OFF;       
+  
+         
+          
+         
+         fik=saved(end_par_series_DGGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_2000.dat",0); 
+         
+         
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_2000.txt";
+	
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DGGamma;    
+        
+         OUTPUT OFF;
+	 
+	 endif;
+	 
+    if n==N1[2];
+		 
+		 fik=saved(end_par_series_GGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_500.dat",0); 
+        
+        
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_500.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_GGamma;    
+        
+         OUTPUT OFF;     
+        
+        
+         fik=saved(end_par_series_DGGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_500.dat",0); 
+        
+        
+        file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_500.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DGGamma;    
+        
+         OUTPUT OFF;         
+        
+        
+	 
+	 endif;	 
+	 
+	 if n==N1[1];
+		 
+		 fik=saved(end_par_series_GGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_250.dat",0); 
+         
+         
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_250.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_GGamma;    
+        
+         OUTPUT OFF;     
+           
+         
+         fik=saved(end_par_series_DGGamma, working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_250.dat",0); 
+         
+         file_name = working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_250.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print end_par_series_DGGamma;    
+        
+         OUTPUT OFF;         
+         
+         
+         
+	 
+	 endif;	 
+ endif;
+
+
+  ls=ls+1;
+
+  endo;
+  
+ if a==1;
+   
+   estimates_Burr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_Burr_estimates_sample_2000.dat");
+   estimates_DBurr=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DBurr_DBurr_estimates_sample_2000.dat");
+  
+ elseif a==2;
+  
+   estimates_GGamma=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_GGamma_estimates_sample_2000.dat");
+   estimates_DGGamma=loadd(working_folder$+"output_data\\Simulation\\Simulation_from_DGGamma_DGGamma_estimates_sample_2000.dat");
+
+ endif;  
+	 
+ 
+if a==1;	
+
+	omega = true_theta[1];
+    beta1 = true_theta[2];
+    alpha1 = true_theta[3];
+    kappa = true_theta[4];
+    sigma2 = true_theta[5];
+	  
+   	
+    @ Set the duration series for the sake of visualisation @
+	
+	data = 17|1|20|7|2|4|4|4|3|1|3|1|4;
+	
+	
+     start=(true_theta[1])|ln(true_theta[2]/(1-true_theta[2]))|ln(true_theta[3])|ln(true_theta[4])|ln(1/true_theta[5]);
+
+	@ Compute the time-varying conditional expectation of the duration according to the DGP I @
+    
+
+	{Ksi_DB} = Ksi_DBurr(start, data);
+	
+	z=seqa(1,1,1000);
+	
+	Expect_DB=ones(rows(Ksi_DB),1);
+	
+	for i(1,rows(Ksi_DB),1);
+	Expect_DB[i] = sumc(z.*(((1+((z-1)./Ksi_DB[i]).^kappa).^(-sigma2))-((1+((z+1-1)./Ksi_DB[i]).^kappa).^(-sigma2))));
+	endfor;
+	
+
+   duration={};
+   scale_DBurr={};
+   expectation_DBurr={};
+	
+	for i(1, rows(data), 1);
+		duration=duration|seqa(1,1,data[i]);
+		scale_DBurr=scale_DBurr|ksi_DB[i]*ones(data[i],1);
+		expectation_DBurr = expectation_DBurr|Expect_DB[i]*ones(data[i],1);
+    endfor;
+  
+  @ Compute the time-varying conditional hazard according to the DGP I @
+	
+  kappa_est=true_theta[4];
+  sigma2_est=true_theta[5];
+  
+  DBurr_intensity = (((1+((duration-1)./scale_DBurr).^kappa_est).^(-sigma2_est))-((1+((duration+1-1)./scale_DBurr).^kappa_est).^(-sigma2_est)))./((1+((duration-1)./scale_DBurr).^kappa_est).^(-sigma2_est));	
+  
+  @ Compute the time-varying conditional expectation of the duration according to the misspecified Burr Spot model @ 
+  
+   mean_Burr_estimated = meanc(estimates_Burr);
+  
+   start_estimated=mean_Burr_estimated[1]|ln(mean_Burr_estimated[2]/(1-mean_Burr_estimated[2]))|ln(mean_Burr_estimated[3])|ln(mean_Burr_estimated[4])|ln(mean_Burr_estimated[5]);
+ 
+	
+  {Ksi_B} = Ksi_Burr(start_estimated, data);
+ 
+  duration={};
+  scale_Burr={};
+  
+	for i(1, rows(data), 1);
+		duration=duration|seqa(1,1,data[i]);
+		scale_Burr=scale_Burr|ksi_B[i]*ones(data[i],1);
+	endfor;
+  
+	@ Compute the time-varying cond. hazard according to the misspecified Burr Spot model @
+	
+  kappa_est=mean_Burr_estimated[4];
+  sigma2_est=mean_Burr_estimated[5];
+  
+  Burr_intensity= ((kappa_est*sigma2_est./scale_Burr).*(duration./scale_Burr).^(kappa_est-1))./(1+((duration./scale_Burr).^kappa_est)); 
+  
+  Expect_Burr=scale_Burr*sigma2_est*beta(sigma2_est-1/kappa_est, 1+1/kappa_est);
+  
+ 
+   fik=saved(DBurr_intensity, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DBurr_intensity_true.dat",0);
+    
+    
+   file_name = working_folder$+"output_data\\Simulation\\Simulation_trajectory_DBurr_intensity_true.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print DBurr_intensity;    
+        
+         OUTPUT OFF;     
+    
+    
+   
+  fik=saved(Burr_intensity, working_folder$+"output_data\\Simulation\\Simulation_trajectory_Burr_intensity_est.dat",0);
+ 
+ 
+  file_name = working_folder$+"output_data\\Simulation\\Simulation_trajectory_Burr_intensity_est.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print Burr_intensity;    
+        
+         OUTPUT OFF; 
+ 
+
+ 
+     fik=saved(Expect_Burr, working_folder$+"output_data\\Simulation\\Simulation_trajectory_Burr_expectation_est.dat",0);
+ 
+     fik=saved(Expectation_DBurr, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DBurr_expectation_true.dat",0);
+ 
+ 
+ file_name = working_folder$+"output_data\\Simulation\\Simulation_trajectory_DBurr_expectation_true.txt";
+	
+         OUTWIDTH 256;
+         output file=^file_name on;     
+         
+         print Expectation_DBurr;    
+        
+         OUTPUT OFF; 
+  
+ 
+ fik=saved(duration, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DBurr_duration.dat",0);
+	
+		   
+  elseif a==2;
+  
+  
+    omega = true_theta[1];
+    beta1 = true_theta[2];
+    alpha1 = true_theta[3];
+    alphagg = true_theta[4];
+    gammagg = true_theta[5];
+	  
+    
+	 @ Set the duration series for the sake of visualisation @
+	 
+	  data=4|6|9|6|12|28|22|3|8; 
+	  
+	  start=true_theta[1]|ln(true_theta[2]/(1-true_theta[2]))|ln(true_theta[3])|ln(true_theta[4])|ln(true_theta[5]);
+
+@ Compute the time-varying conditional expectation of the duration according to the DGP II @
+	  
+  {Ksi_DGG} = Ksi_DGGamma(start, data);
+	  	  
+    z=seqa(1,1,1000);
+	
+	Expect_DGG=ones(rows(Ksi_DGG),1);
+	
+	for i(1,rows(Ksi_DGG),1);
+	Expect_DGG[i] = sumc(z.*(1-cdfgam(alphagg, ((z-1)./Ksi_DGG[i]).^gammagg) - (1-cdfgam(alphagg, (z./Ksi_DGG[i]).^gammagg))));
+	endfor;
+	
+   duration={};
+   scale_DGGamma={};
+   expectation_DGGamma={};
+	
+	for i(1, rows(data), 1);
+		duration=duration|seqa(1,1,data[i]);
+		scale_DGGamma=scale_DGGamma|Ksi_DGG[i]*ones(data[i],1);
+		expectation_DGGamma=expectation_DGGamma|Expect_DGG[i]*ones(data[i],1);
+    endfor;
+  
+@ Compute the time-varying conditional hazard according to the DGP II @
+	
+  DGGamma_intensity_true = (1-cdfgam(alphagg, ((duration-1)./scale_DGGamma).^gammagg) - (1-cdfgam(alphagg, (duration./scale_DGGamma).^gammagg)))
+  ./(1-cdfgam(alphagg, ((duration-1)./scale_DGGamma).^gammagg));
+  
+ @ Compute the time-varying cond. expectation of the duration according to the misspecified GGamma Spot model @ 	
+  
+  mean_GGamma_estimated = meanc(estimates_GGamma);
+  
+  start_estimated=(mean_GGamma_estimated[1])|ln(mean_GGamma_estimated[2]/(1-mean_GGamma_estimated[2]))|ln(mean_GGamma_estimated[3])|ln(mean_GGamma_estimated[4])|ln(mean_GGamma_estimated[5]);
+	  
+  {Ksi_GG} = Ksi_GGamma(start_estimated, data);
+ 
+  duration={};
+  scale_GGamma={};
+  
+  for i(1, rows(data), 1);
+  duration=duration|seqa(1,1,data[i]);
+  scale_GGamma=scale_GGamma|ksi_GG[i]*ones(data[i],1);
+  endfor;
+ 
+  alphaGG_est=mean_GGamma_estimated[4];
+  gammaGG_est =mean_GGamma_estimated[5];
+  
+  Expect_GGamma=scale_GGamma*gamma(alphaGG_est+1/gammaGG_est)/gamma(alphaGG_est);
+  
+ @ Compute the time-varying cond. hazard according to the misspecified GGamma Spot model @
+  
+  GGamma_intensity = exp(-(loggamma(alphaGG_est)) +ln(gammaGG_est) -ln(duration) + (gammaGG_est * alphaGG_est * ln(duration./scale_GGamma))
+         -((duration./scale_GGamma).^gammaGG_est))./(1-CDFGAM(alphaGG_est, (duration./scale_GGamma).^gammaGG_est));
+  
+  
+ 
+ fik=saved(DGGamma_intensity_true, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DGGamma_intensity_true.dat",0);
+ fik=saved(GGamma_intensity, working_folder$+"output_data\\Simulation\\Simulation_trajectory_GGamma_intensity_est.dat",0);
+ fik=saved(Expect_GGamma, working_folder$+"output_data\\Simulation\\Simulation_trajectory_GGamma_expectation_est.dat",0);
+ fik=saved(Expectation_DGGamma, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DGGamma_expectation_true.dat",0);
+ fik=saved(duration, working_folder$+"output_data\\Simulation\\Simulation_trajectory_DGGamma_duration.dat",0);
+
+  endif;
+
+   
+
+  
+
+printElapsedTime();
+
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ +++++++++++++++++++ PROCEDURES ++++++++++++++++++++++++++++++++++@
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@  
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  SIMULATING DATA ACCORDING TO THE DGGSPOT MODEL ++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@ 
+  
+ proc SIM_dGamma(_n,_omega,_beta1,_alpha1,_alphagg,_gammagg, burn);
+	
+local _psi1, x, u, i, scor;
+
+_psi1=ones(_n+burn,1).*_omega/(1-_beta1); 
+
+	 
+u=0.5|rndu(_n+burn-1,1);
+
+x=ones(_n+burn,1).* exp(_psi1).*(rndGamma(rows(u), 1, _alphagg, 1)).^(1/_gammagg) +1;
+scor=zeros(_n+burn,1);
+	 
+i=2;
+	
+do while i<=_n+burn;
+
+scor[i]=  (1/(-cdfgam(_alphagg, ((x[i-1]-1)./exp(_psi1[i-1])).^_gammagg) + cdfgam(_alphagg, (x[i-1]./exp(_psi1[i-1])).^_gammagg)))*
+	((1/Gamma(_alphagg))*(((x[i-1]-1)/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1]-1)/exp(_psi1[i-1]))^_gammagg)*((x[i-1]-1)^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg)
+	-(1/Gamma(_alphagg))*(((x[i-1])/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1])/exp(_psi1[i-1]))^_gammagg)*((x[i-1])^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg));
+	
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+
+x[i]= trunc(exp(_psi1[i]).*(rndGamma(1, 1, _alphagg, 1).^(1/_gammagg)))+1;
+
+	
+i=i+1;	
+endo;
+
+	
+retp(x[(burn+1):(_n+burn),1]);
+
+endp;
+  
+  
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  SIMULATING DATA ACCORDING TO THE DBSPOT MODEL ++++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@  
+  
+proc(2)= SIM_dBURR(_n,_omega,_beta1,_alpha1,_kappa,_sigma2, burn);
+	
+local _psi1, x, u, i, wygenerowane;
+
+_psi1=ones(_n+burn,1).*_omega/(1-_beta1); 
+
+
+{wygenerowane, state} = rndu(_n+burn-1, 1, state);
+	
+u=0.5|wygenerowane;
+
+x=trunc(ones(_n+burn,1).* exp(_psi1).*(((1-u).^(-1/_sigma2)-1).^(1/_kappa)))+1;
+
+i=2;
+	
+do while i<=_n+burn;
+
+_psi1[i,1]= _omega 
+	+ _alpha1*((1/(((1+((x[i-1]-1)./exp(_psi1[i-1])).^_kappa).^(-_sigma2))-((1+(x[i-1]./exp(_psi1[i-1])).^_kappa).^(-_sigma2))))
+*((_sigma2*_kappa*(1+((x[i-1]-1)/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1]-1)/exp(_psi1[i-1]))^_kappa 
+	- (_sigma2*_kappa*(1+((x[i-1])/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1])/exp(_psi1[i-1]))^_kappa))
+           + _beta1*(_psi1[i-1]);
+
+x[i]= trunc(exp(_psi1[i]).*(((1-u[i]).^(-1/_sigma2)-1).^(1/_kappa)))+1;
+
+i=i+1;	
+endo;
+
+	
+retp(x[(burn+1):(_n+burn),1], state);
+
+endp;
+
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  Log Likelihood function for the DBSPOT model ++++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+
+proc li_Burr_discrete_maxlik(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _llik, _kappa, _sigma2;
+
+    _omega = B[1];
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_kappa  = exp(B[4]);
+    _sigma2 = exp(B[5]);	
+	
+_psi1=ones(n,1).*_omega/(1-_beta1);
+
+
+i=2;
+
+do while i<=n;
+
+	
+_psi1[i,1]= _omega 
+	+ _alpha1*((1/(((1+((x[i-1]-1)./exp(_psi1[i-1])).^_kappa).^(-_sigma2))-((1+(x[i-1]./exp(_psi1[i-1])).^_kappa).^(-_sigma2))))
+*((_sigma2*_kappa*(1+((x[i-1]-1)/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1]-1)/exp(_psi1[i-1]))^_kappa 
+	- (_sigma2*_kappa*(1+((x[i-1])/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1])/exp(_psi1[i-1]))^_kappa))
+           + _beta1*(_psi1[i-1]);
+	
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+ _llik =ln(((1+((X-1)./_ksi).^_kappa).^(- _sigma2))-((1+((X+1-1)./_ksi).^_kappa).^(-_sigma2)));
+      
+
+ retp(_llik[2:(rows(_llik))]);
+ 
+ 
+endp;
+
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  Log Likelihood function for the BSPOT model ++++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+
+proc li_Burr_maxlik(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _llik, _kappa, _sigma2, scor;
+
+
+    _omega = B[1];
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_kappa  = exp(B[4]);
+   _sigma2 = 1/exp(B[5]);
+  
+ 
+	
+_psi1=ones(n,1).*_omega/(1-_beta1);
+scor = zeros(n,1);
+
+i=2;
+
+do while i<=n;
+	scor[i]= -(_kappa - _kappa*_sigma2*(x[i-1]*exp(-_psi1[i-1]))^_kappa)/((x[i-1]*exp(-_psi1[i-1]))^_kappa + 1);
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+	
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+ _llik=ln(_kappa) + ln(_sigma2)-ln(_ksi) + (_kappa-1)*ln(X./_ksi)
+           - (_sigma2+1)*ln(1+(X./_ksi).^_kappa) ;     
+
+
+
+ retp(_llik[2:(rows(_llik))]);
+ 
+ 
+
+endp;
+
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  Log Likelihood function for the GGSPOT model ++++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+
+
+proc li_GGamma_maxlik(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _llik, _alphagg, _gammagg, scor;
+
+
+
+    _omega = (B[1]);
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_alphagg  = exp(B[4]);
+    _gammagg = exp(B[5]);	
+
+	
+
+_psi1=ones(n,1).*_omega/(1-_beta1);
+scor = zeros(n,1);
+
+i=2;
+
+do while i<=n;
+
+
+	scor[i]= -_alphagg*_gammagg +_gammagg*(x[i-1]/exp(_psi1[i-1])).^_gammagg;
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+
+	
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+_llik= -(loggamma(_alphagg)) +ln(_gammagg) -ln(x) + (_gammagg * _alphagg * ln(x./_ksi)) - ((x./_ksi).^_gammagg);
+
+ retp(_llik[2:(rows(_llik))]);
+
+
+endp;
+
+
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+@ ++++++++++++  Log Likelihood function for the DGGSPOT model ++++++++++@ 
+@ +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++@
+
+
+proc li_DGGamma_maxlik(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _llik, _alphagg, _gammagg, scor;
+
+    _omega = (B[1]);
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_alphagg  =exp(B[4]);
+    _gammagg = exp(B[5]);	
+
+
+_psi1=ones(n,1).*_omega/(1-_beta1);
+scor = zeros(n,1);
+
+i=2;
+
+do while i<=n;
+
+scor[i]=  (1/(-cdfgam(_alphagg, ((x[i-1]-1)./exp(_psi1[i-1])).^_gammagg) + cdfgam(_alphagg, (x[i-1]./exp(_psi1[i-1])).^_gammagg)))*
+	((1/Gamma(_alphagg))*(((x[i-1]-1)/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1]-1)/exp(_psi1[i-1]))^_gammagg)*((x[i-1]-1)^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg)
+	-(1/Gamma(_alphagg))*(((x[i-1])/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1])/exp(_psi1[i-1]))^_gammagg)*((x[i-1])^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg));
+	
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+
+_llik= ln(-cdfgam(_alphagg, ((x-1)./_ksi).^_gammagg) + cdfgam(_alphagg, (x./_ksi).^_gammagg));
+
+
+ retp(_llik[2:(rows(_llik))]);
+
+
+endp;
+
+
+
+
+/**********************************************************************************************/
+@ Scale parameter for the Burr SPOT model @
+/***********************************************************************************************/
+
+
+
+proc ksi_Burr(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _kappa, _sigma2, scor;
+
+
+
+    _omega = B[1];
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_kappa  = exp(B[4]);
+    _sigma2 = 1/exp(B[5]);	
+ 
+
+_psi1=ones(rows(x),1).*_omega/(1-_beta1);
+scor = zeros(rows(x),1);
+
+i=2;
+
+do while i<=rows(x);
+	scor[i]= -(_kappa - _kappa*_sigma2*(x[i-1]*exp(-_psi1[i-1]))^_kappa)/((x[i-1]*exp(-_psi1[i-1]))^_kappa + 1);
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+	
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+  
+
+ retp(_ksi);
+ 
+ 
+
+endp;
+
+
+/**********************************************************************************************/
+@ Scale parameter for the Discrete Burr SPOT model @
+/***********************************************************************************************/
+
+
+
+proc ksi_DBurr(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _kappa, _sigma2, scor;
+
+
+    _omega = B[1];
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_kappa  = exp(B[4]);
+	
+   _sigma2 = exp(B[5]);
+
+_psi1=ones(rows(x),1).*_omega/(1-_beta1);
+scor = zeros(rows(x),1);
+
+i=2;
+
+do while i<=rows(x);
+_psi1[i,1]= _omega 
+	+ _alpha1*((1/(((1+((x[i-1]-1)./exp(_psi1[i-1])).^_kappa).^(-_sigma2))-((1+(x[i-1]./exp(_psi1[i-1])).^_kappa).^(-_sigma2))))
+*((_sigma2*_kappa*(1+((x[i-1]-1)/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1]-1)/exp(_psi1[i-1]))^_kappa 
+	- (_sigma2*_kappa*(1+((x[i-1])/exp(_psi1[i-1]))^_kappa)^(-_sigma2-1))*((x[i-1])/exp(_psi1[i-1]))^_kappa))
+           + _beta1*(_psi1[i-1]);
+		
+	
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+  
+
+ retp(_ksi);
+ 
+ 
+
+endp;
+
+
+/**********************************************************************************************/
+@ Scale parameter for the Generalized Gamma SPOT model @
+/***********************************************************************************************/
+
+
+proc ksi_GGamma(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _alphagg, _gammagg, scor;
+
+
+
+    _omega = (B[1]);
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_alphagg  = exp(B[4]);
+    _gammagg = exp(B[5]);	
+
+
+
+_psi1=ones(rows(x),1).*_omega/(1-_beta1) - 0.56;
+	
+@ the value of _psi1[1] is callibrated, so that the conditional expectations for the first duration X_i from GGSPOT and DGGSPOT model are the same: 5.82 @
+
+scor = zeros(rows(x),1);
+
+i=2;
+
+do while i<=rows(x);
+
+
+	scor[i]= -_alphagg*_gammagg +_gammagg*(x[i-1]/exp(_psi1[i-1])).^_gammagg;
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+ retp(_ksi);
+
+
+endp;
+
+
+
+/**********************************************************************************************/
+@ Scale parameter for the Discrete Generalized Gamma SPOT model @
+/***********************************************************************************************/
+
+
+proc Ksi_DGGamma(b,x);
+local _omega, _alpha1, _beta1, _psi1, _ksi, i, _alphagg, _gammagg, scor;
+
+    _omega = (B[1]);
+    _beta1  = exp(B[2])/(1+exp(B[2]));	
+	_alpha1 = exp(B[3]);  
+	_alphagg  =exp(B[4]);
+    _gammagg = exp(B[5]);	
+
+
+_psi1=ones(rows(x),1).*_omega/(1-_beta1) -0.5;
+scor = zeros(rows(x),1);
+
+i=2;
+
+do while i<=rows(x);
+
+scor[i]=  (1/(-cdfgam(_alphagg, ((x[i-1]-1)./exp(_psi1[i-1])).^_gammagg) + cdfgam(_alphagg, (x[i-1]./exp(_psi1[i-1])).^_gammagg)))*
+	((1/Gamma(_alphagg))*(((x[i-1]-1)/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1]-1)/exp(_psi1[i-1]))^_gammagg)*((x[i-1]-1)^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg)
+	-(1/Gamma(_alphagg))*(((x[i-1])/exp(_psi1[i-1])).^(_gammagg*(_alphagg-1))).*exp(-((x[i-1])/exp(_psi1[i-1]))^_gammagg)*((x[i-1])^_gammagg)*_gammagg*(exp(_psi1[i-1]))^(-_gammagg));
+	
+	_psi1[i,1]= _omega 
+	       + _alpha1*scor[i] + _beta1*(_psi1[i-1]);
+	
+
+i=i+1;
+endo;
+
+_ksi=exp(_psi1);
+
+
+ retp(_ksi);
+
+
+endp;
+
+
+
+
+/* -------------------------------------- */
+
+PROC loggamma (x);
+
+/*
+Computes log of Gamma function
+*/
+
+   local z;
+     x=x+6;
+     z=1/(x.*x);
+     z=(((-0.000595238095238*z+0.000793650793651)
+          .*z-0.002777777777778).*z+0.083333333333333)./x;
+     z=(x-0.5).*ln(x)-x+0.918938533204673+z
+           -ln(x-1)-ln(x-2)-ln(x-3)-ln(x-4)-ln(x-5)-ln(x-6);
+   retp(z);
+endp;
+
+
+proc (0) = startCodeTimer();
+    // set the global time variable to the number
+    // of seconds since January 1, 1970 
+    __my_code_start_seconds = timeutc();
+endp;
+ 
+proc (1) = printElapsedTime();
+    local elapsed_sec;
+ 
+    // Compute the number of seconds elapsed
+    // since 'startCodeTimer' was called
+    elapsed_sec = timeutc() - __my_code_start_seconds;
+ 
+    // Multiply by 100, because 'etstr'
+    // assumes that the input is in hundredths of a second
+    retp(etstr(elapsed_sec * 100));
+endp; 
+
+

@@ -1,0 +1,37 @@
+[1] "This is the replication of Table G7"
+[1] "================================================================================================================================================="
+[1] "NASDAQ:"
+[1] "Strict ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.143   0.462   0.656    0.487  0.880   0.619    0.484              0        0.015
+alpha = 0.975  0.514   0.941   0.840    0.939  0.876   0.976    0.933              0        0.019
+alpha = 0.99   0.886   0.956   0.862    0.933  0.913   0.890    0.945              0        0.044
+[1] "Auxiliary ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.138   0.402   0.728    0.407  0.907   0.585    0.429              0        0.015
+alpha = 0.975  0.608   0.950   0.887    0.934  0.857   0.993    0.971              0        0.022
+alpha = 0.99   0.890   0.906   0.863    0.937  0.911   0.845    0.950              0        0.044
+[1] "================================================================================================================================================="
+[1] "SP 500:"
+[1] "Strict ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.002   0.003   0.007    0.003  0.016   0.006    0.004              0        0.023
+alpha = 0.975  0.675   0.748   0.794    0.695  0.924   0.815    0.739              0        0.015
+alpha = 0.99   0.813   0.656   0.735    0.609  0.520   0.334    0.657              0        0.043
+[1] "Auxiliary ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.005   0.005   0.016    0.007  0.026   0.006    0.004              0        0.023
+alpha = 0.975  0.693   0.774   0.852    0.757  0.920   0.803    0.766              0        0.016
+alpha = 0.99   0.838   0.779   0.847    0.711  0.545   0.431    0.795              0        0.046
+[1] "================================================================================================================================================="
+[1] "Wilshire 5000:"
+[1] "Strict ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.003   0.010   0.012    0.009  0.029   0.013    0.009              0        0.034
+alpha = 0.975  0.819   0.870   0.928    0.874  0.995   0.957    0.863              0        0.018
+alpha = 0.99   0.854   0.776   0.827    0.676  0.751   0.600    0.740              0        0.062
+[1] "Auxiliary ESR test p-value"
+              B-SPOT DB-SPOT GG-SPOT DGG-SPOT W-SPOT DW-SPOT BNB-SPOT Gaussian GARCH Skew t GARCH
+alpha = 0.95   0.013   0.015   0.036    0.018  0.065   0.019    0.013              0        0.031
+alpha = 0.975  0.882   0.938   0.967    0.911  0.977   0.978    0.933              0        0.018
+alpha = 0.99   0.863   0.904   0.934    0.843  0.845   0.715    0.892              0        0.060

@@ -1,0 +1,3405 @@
+
+/*** ============================================================================================================ ***/
+/*** APTECH Gauss code for the article "When to Be Discrete: The Importance of Time Formulation in the Modeling of Extreme Events in Finance" 
+by Katarzyna Bien-Barkowska & Rodrigo Herrera ***/
+/*** ============================================================================================================ ***/
+
+/*** This script replicates the results in Table 3 and Table D6; 
+it also generates (1) the intermediary datasets used for plotting figures in the Matlab script "Figure_7_and_8.m",
+                  (2) the intermediary datasets used in the R script */
+
+/*************************** Introduction *****************************************/
+
+new; 
+cls;
+
+@ Computation time @
+
+declare __my_code_start_seconds = 0;
+
+startCodeTimer();
+ 
+
+
+@ If printout = 1, then the preliminary data for Figures 7, 8, and 10, and Tables 4-5 can be replicated, the default value is printout =0  @
+
+printout=0;
+
+@ Preparing the working folder for the gss-file @
+
+working_folder=__FILE_DIR;
+
+@ =======================================@
+@ Loading necessary GAUSS libraries =====@
+@ =======================================@
+
+library cml;
+
+@ Defining the global settings that cannot be changed: @
+
+upper_q=0;
+
+GAS_GAS =1;
+
+z_korr=0;
+
+
+explanatory=2;  @ Allow for the transformation of x in the lnsigma equation: explanatory_x=1  lnx, explanatory_x=2: Box-Cox; explanatory_x=3 x; explanatory_x=4 none explanatory variables @
+	
+@ Caution! Only explanatory_x=2 or explanatory_x=4 are working in this version of the Gauss code.  @
+	
+if explanatory==1; explanatory_var="ln"; 
+elseif explanatory==2; explanatory_var="inv";  
+elseif explanatory==3; explanatory_var="linear"; 
+elseif explanatory==4; explanatory_var="none"; 
+endif;
+
+@ Naming necessary variables @
+
+if GAS_GAS==1; GAS_type="GAS_type"; elseif GAS_GAS==0; GAS_type="LACD_type"; endif;
+
+All_VaR={};
+All_VaR_out={};
+    
+ if printout==0;  
+ file_name = working_folder$+"replicated_results\\Replicated_Table3_and_Table_G6.txt";
+ OUTWIDTH 256;
+ output file=^file_name reset;
+ output off; 
+ endif;
+ 
+@ ============================================================================================= @	
+@ Check the backtesing period: test_okres=1 (longer: 12 years), test_okres=2 (shorter: 4 years) @
+@ ============================================================================================= @
+	
+test_okres=1; @ This is a 12-year-long backtesting period used in the article @
+
+@ Internal loop over four indexes used in the study @
+
+k=1;
+ 
+do while k<=4;
+
+@ Loop over the distributions used in the SPOT models @
+
+distrib=1;
+
+do while distrib<=7;
+
+if distrib==1; distr="cont_Burr"; distr_napis="BURR"; 
+    elseif distrib==2; distr="DBurr"; distr_napis="DBURR"; 
+    elseif distrib==3; distr="BNB"; distr_napis="BNB"; 
+    elseif distrib==4; distr="cont_Weibull"; distr_napis="Weibull"; 
+    elseif distrib==5; distr="DWeibull"; distr_napis="DWeibull"; 
+    elseif distrib==6; distr="GammaGG"; distr_napis="GammaGG";	
+    elseif distrib==7; distr="DGammaGG"; distr_napis="DGammaGG";	
+endif;
+
+@ Iterating over rolling windows corresponding to the different lengths of the estimation samples @
+
+iter=1;
+	
+do while iter<=7;
+		
+if k==1;
+
+dat = loadd(working_folder$+"data\\DowJones.dat");
+index="DowJones";	
+	
+endif;
+
+
+if k==2;
+	
+dat = loadd(working_folder$+"data\\NASDAQ.dat");
+index="NASDAQ";
+	
+endif;
+
+
+
+if k==3;
+	
+dat = loadd(working_folder$+"data\\SP500.dat");
+index="SP500";	
+
+	
+endif;
+
+if k==4;
+	
+dat = loadd(working_folder$+"data\\Wilshire.dat");
+index="Wilshire";
+	
+endif;
+
+
+dat = selif(dat, dat[.,13].>= 19810101);
+dat = selif(dat, dat[.,13].<= 20221228);
+
+@ Setting the necessary backtesting dates for the rolling estimation used in the study @
+	
+if iter==1;
+backtesting_date = 20110101;
+dat = selif(dat, dat[.,13].< 20130101);
+elseif iter==2;
+backtesting_date = 20130101;
+dat = selif(dat, dat[.,13].< 20150101);
+elseif iter==3;
+backtesting_date = 20150101;
+dat = selif(dat, dat[.,13].< 20170101);
+elseif iter==4;
+backtesting_date = 20170101;
+dat = selif(dat, dat[.,13].< 20190101);
+elseif iter==5;
+backtesting_date = 20190101;
+dat = selif(dat, dat[.,13].< 20210101);
+elseif iter==6;
+backtesting_date = 20210101;
+dat = selif(dat, dat[.,13].< 20230101);	
+endif;
+
+if iter>6;
+if test_okres==2;
+backtesting_date = 20190101;
+dat = selif(dat, dat[.,13].< 20230101);	
+elseif test_okres==1;
+backtesting_date = 20110101;
+dat = selif(dat, dat[.,13].< 20221229);	
+endif;
+endif;
+
+
+dat[.,14] = dat[.,14]*100;
+
+ret=dat[.,14];
+dat=dat~seqa(1,1,rows(dat));
+
+n=rows(dat);
+
+
+
+@=================================@
+
+
+CASES_EST_FULL= rows(selif(dat, dat[.,13].< backtesting_date));
+
+
+/* +++++++++++++++ Setting the quantile orders for the optimal threshold u ++++++++++++++++++ */
+
+
+
+if k==1;
+	
+	progi= 0.073;
+	
+	
+endif;
+	
+
+
+if k==2;
+	
+	
+	progi=0.084;
+
+   
+
+endif;
+
+
+
+if k==3;
+	
+	
+	progi=0.055;
+	
+
+
+endif;
+
+if k==4;
+	
+	
+	progi=0.053;
+    
+	
+endif;
+
+
+
+@ === Computing the optimal threshold u as the empirical quantile === @
+
+
+prog=abs(quantile(ret[1:CASES_EST_FULL], progi));
+
+
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+@ ===== Calculating the inter-exceedance times ====================== @ 
+
+dur_crash=zeros(n,1);
+
+
+if upper_q==0;
+
+for i(2,n,1);
+
+dur_crash[i]= dur_crash[i-1] + 1 ;
+	
+if ret[i-1]< - prog ;
+
+	dur_crash[i]= 1;
+	
+endif;
+
+endfor;
+
+ind_crash_down = ret.<=-prog;
+ind_crash_up = ret.>prog;
+
+elseif upper_q==1;
+
+	for i(2,n,1);
+
+    dur_crash[i]= dur_crash[i-1] + 1 ;
+	
+    if ret[i-1] > prog ;
+
+	dur_crash[i]= 1;
+	
+    endif;
+
+    endfor;
+
+    ind_crash_down = ret.>=prog;
+    ind_crash_up = ret.<prog;
+
+endif;
+
+
+dane=dat~dur_crash~ind_crash_down~ind_crash_up;
+
+
+dane1 =selif(dane, dane[.,17].==1);
+
+dane2 =delif(dane, dane[.,17].==1);
+
+
+@ ==== Calculating the threshold exceedance magnitudes ===@ 
+
+y=(abs(dane1[.,14])-prog);
+
+y=recode(y, y.==0, 0.0001);
+
+dane1_dur_crash=dane1[.,16];
+dane1_ind_crash_down=dane1[.,17];
+
+if dane1_dur_crash[1]==0;
+	
+dane1_dur_crash[1]=1;
+	
+endif;
+
+
+xi=dane1_dur_crash;
+
+CASES=rows(dane1);
+
+CASES_EST = rows(selif(dane1, dane1[.,13].< backtesting_date));
+
+CASES_EST_FULL= rows(selif(dane, dane[.,13].< backtesting_date));
+
+
+
+@ === Adjusting the settings for the numerical optimizations === @
+
+	
+if iter<=6;
+
+	cmlset;
+    settings_maximum_likelihood; 
+
+
+
+
+@ =========================================================================================================@
+@ == Constrained ML estimation of SPOT models ==============================================================@
+@ =========================================================================================================@
+
+@ ======================= BNB SPOT models =================================@
+	
+if distrib==3;
+
+	
+if explanatory==2;
+_cml_Bounds = { -100 50, 0.00000001 0.99999999, 0.0001 1, -10 500, 0.0001 1000, 1.0001 500, -100 50, 0.00000001 0.99999999, 0.0001 0.99999999, 0.000000001 0.99999999, -20 500, -20 500};
+_cml_CovPar=2;	
+	
+start=loadd(working_folder$+"data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = exp(start[5]); start1[6] = exp(start[6])+1; start1[7] = start[7];  start1[8]  = exp(start[8])/(1+exp(start[8]));    
+start1[9] = exp(start[9]); start1[10] = exp(start[10])/(1+exp(start[10])); start1[11] = (start[11]); start1[12] = (start[12]);
+
+elseif explanatory==4;
+
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+_cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, 0.0001 1000, 1.0001 500, -100 50, 0.0001 0.999, 0.00001 0.9999, 0.0001 0.999};
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4]); start1[5] = exp(start[5])+1; start1[6] = start[6];  start1[7]  = exp(start[7])/(1+exp(start[7]));    
+start1[8] = exp(start[8]); start1[9] = exp(start[9])/(1+exp(start[9])); 
+
+		
+endif;
+ 
+__output=0;
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_BNB_cml,start1));
+
+
+{Ksi} = Ksi_comp_BNB(end_par, dane1_dur_crash);
+
+
+@ ======================= Burr SPOT models =================================@
+
+elseif distrib==1;
+
+	
+    
+if explanatory==2;
+_cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, -10 500, 0.0001 1000, 0.0001 500, -100 50, 0.0000001 0.9999999, 0.0000001 0.9999999, 0.0000001 0.999999, -20 -0.01, -20 -0.01};
+
+
+start=loadd(working_folder$+"data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = exp(start[5]); start1[6] = exp(start[6]); start1[7] = start[7];  start1[8]  = exp(start[8])/(1+exp(start[8]));    
+start1[9] = exp(start[9]); start1[10] = exp(start[10])/(1+exp(start[10])); start1[11] = (start[11]);  start1[12] = (start[12]);
+  
+if k==2;
+_cml_CovPar=2;	
+endif;
+
+elseif explanatory==4;
+
+cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, 0.0001 500, 0.0001 500, -100 50, 0.000001 0.999, 0.0001 0.999, 0.0001 0.999};
+
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4]); start1[5] = exp(start[5]); start1[6] = start[6];  start1[7]  = exp(start[7])/(1+exp(start[7]));    
+start1[8] = exp(start[8]); start1[9] = exp(start[9])/(1+exp(start[9])); 
+
+endif;
+
+__output=0;
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+{end_par,function,gradient,cov,retcode} =(cml((dane1_dur_crash[1:CASES_EST]),0,&li_Burr_cml,start1));
+
+
+{Ksi} = Ksi_comp_Burr(end_par, dane1_dur_crash);             
+
+
+
+@ ======================= Discrete Burr SPOT models =================================@
+
+elseif distrib==2;
+
+_cml_CovPar=1;	
+		
+if explanatory==2;
+
+@ defining necessary parameter constraints @
+	
+_cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, -10 500, 0.0001 1000, 0.0001 500, -100 50, 0.0000001 0.9999999, 0.0000001 0.9999999, 0.0000001 0.999999, -20 -0.01, -20 -0.01};
+	
+@ loading initial parameter values @
+    
+start=loadd(working_folder$+"data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = exp(start[5]); start1[6] = exp(start[6]); start1[7] = start[7];  start1[8]  = exp(start[8])/(1+exp(start[8]));    
+start1[9] = exp(start[9]); start1[10] = exp(start[10])/(1+exp(start[10])); start1[11] = (start[11]);  start1[12] = (start[12]);
+
+
+if k==2;
+	_cml_CovPar=2;
+	
+endif;
+ 
+
+
+
+elseif explanatory==4;
+
+cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, 0.0001 500, 0.0001 500, -100 50, 0.000001 0.999, 0.0001 0.999, 0.0001 0.999};
+
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4]); start1[5] = exp(start[5]); start1[6] = start[6];  start1[7]  = exp(start[7])/(1+exp(start[7]));    
+start1[8] = exp(start[8]); start1[9] = exp(start[9])/(1+exp(start[9])); 
+
+endif;
+
+__output=0;
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_Burr_discrete_cml,start1));
+
+{Ksi} = Ksi_comp_Burr(end_par, dane1_dur_crash);
+
+
+
+@ ======================= Weibull SPOT models =================================@
+
+elseif distrib==4;
+	
+_cml_CovPar=1;
+    
+start=loadd(working_folder$+"\\data\\parameters\\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+if explanatory==2;
+	
+_cml_Bounds = { -100 50, 0.00000001 0.9999999, 0.000001 100, -10 500, 0.00000001 10, -100 50, 0.0000000000000001 0.99999999, 0.0001 0.999, 0.0001 0.999, -500 500, -500 500 };
+_cml_CovPar=2;
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = exp(start[5])/(1+exp(start[5])); start1[6] = start[6]; start1[7] = exp(start[7])/(1+exp(start[7]));  start1[8]  = exp(start[8]);    
+start1[9] = exp(start[9])/(1+exp(start[9])); start1[10] = (start[10]); start1[11] = (start[11]);
+
+elseif explanatory==4;
+
+_cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, 0.0001 500, -100 50, 0.000001 0.999, 0.0001 0.999, 0.0001 0.999};
+	
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4])/(1+exp(start[4])); start1[5] = start[5];  start1[6]  = exp(start[6])/(1+exp(start[6]));    
+start1[7] = exp(start[7]); start1[8] = exp(start[8])/(1+exp(start[8])); 
+	
+endif;
+
+__output=0;
+
+
+
+
+if explanatory==4;
+ if distrib==1 or  distrib==2 or  distrib==3 or  distrib==6 or  distrib==7;
+
+	if k==2;
+        _cml_Active=ones(9,1);
+		
+		if distrib==6 or distrib==7;
+		
+		
+		_cml_Active[1]=0;
+		endif;
+		
+		if progi>=0.037;
+		
+		
+		_cml_Active[7]=0;
+
+		endif;	
+
+	endif;
+
+ elseif distrib==4 or distrib==5 ;
+
+ if k==2;
+
+		if progi>=0.04;
+		start[6]=-10;	
+		_cml_Active=ones(rows(start),1);
+		_cml_Active[6]=0;
+
+		endif;	
+
+	endif;
+	
+endif;
+endif;
+
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_Weibull_cml,start1));
+
+{Ksi} = Ksi_comp_Weibull(end_par, dane1_dur_crash);
+
+@ ======================= Discrete Weibull SPOT models =================================@
+
+elseif distrib==5;
+	
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+if explanatory==2;
+	
+_cml_Bounds = { -100 50, 0.00000001 0.9999999, 0.000001 100, -10 500, 0.00000001 10, -100 50, 0.0000000000000001 0.99999999, 0.0001 0.999, 0.0001 0.999, -500 500, -500 500 };
+
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = exp(start[5])/(1+exp(start[5])); start1[6] = start[6]; start1[7] = exp(start[7])/(1+exp(start[7]));  start1[8]  = exp(start[8]);    
+start1[9] = exp(start[9])/(1+exp(start[9])); start1[10] = (start[10]); start1[11] = (start[11]);
+
+elseif explanatory==4;
+
+_cml_Bounds = { -100 50, 0.0001 0.999, 0.0001 1, 0.0001 500, -100 50, 0.000001 0.999, 0.0001 0.999, 0.0001 0.999};
+	
+start1=start;	
+start1[1] = start[1]; start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4])/(1+exp(start[4])); start1[5] = start[5];  start1[6]  = exp(start[6])/(1+exp(start[6]));    
+start1[7] = exp(start[7]); start1[8] = exp(start[8])/(1+exp(start[8])); 
+	
+endif;
+
+__output=0;
+
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_Weibull_discrete_cml,start1));
+
+{Ksi} = Ksi_comp_Weibull(end_par, dane1_dur_crash);
+
+@ ======================= GGamma SPOT models =================================@
+
+elseif distrib==6; 
+
+
+start=loadd(working_folder$+"data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+if explanatory==2;
+	
+_cml_Bounds = { 0.0000001 50, 0.0001 0.95, 0.0001 1, -10 500, 0.0001 5, 0.0001 500, -100 50, 0.000000000000001 0.9999999, 0.0001 0.9999999, 0.0001 0.999, -20 -0.01, -20 -0.01};
+
+_cml_CovPar=2;
+_cml_Algorithm=7;
+start1=start;	
+start1[1] = exp(start[1]); start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = 1/exp(start[5]); start1[6] = exp(start[6]); start1[7] = start[7];  start1[8]  = exp(start[8])/(1+exp(start[8]));    
+start1[9] = exp(start[9])/(1+exp(start[9])); start1[10] = exp(start[10])/(1+exp(start[10])); start1[11] = (start[11]);  start1[12] = (start[12]);
+
+if k==2;
+    start1[2]  = exp(start[2])/(1+exp(start[2]))-0.001;	
+	
+
+endif;		
+	
+	
+elseif explanatory==4;
+
+_cml_Bounds = { 0.0000000001 50, 0.0001 0.99, 0.0001 100, 0.0001 500, 0.0001 500, -100 50, 0.00000000000000001 0.999, 0.0001 0.999, 0.0001 0.999};
+
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+_cml_CovPar=2;
+start1=start;	
+start1[1] = exp(start[1]); start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4]); start1[5] = exp(start[5]); start1[6] = start[6];  start1[7]  = exp(start[7])/(1+exp(start[7]));    
+start1[8] = exp(start[8]); start1[9] = exp(start[9])/(1+exp(start[9])); 
+if k==2;
+    start1[2]  = exp(start[2])/(1+exp(start[2]))-0.01;	
+
+endif;		
+
+	
+endif;
+
+__output=0;
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_GGamma_cml,start1));
+
+
+{Ksi} = Ksi_comp_GGamma(end_par, dane1_dur_crash);
+
+
+
+@ ======================= Discrete GGamma SPOT models =================================@
+
+elseif distrib==7; 
+_cml_CovPar=1;
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+
+if explanatory==2;
+	
+_cml_Bounds = { -20 5000, 0.0000000001 0.999999999, 0.000000001 1000, -10 -0.0000001, 0.0000001 1000, 0.0000001 500, -100 50, 0.00000000001 0.999999, 0.0000001 0.999999, 0.0000001 0.999999, -20 -0.0000001, -20 -0.0000001};
+
+_cml_CovPar=2;
+
+start1=start;	
+start1[1] = (start[1]); start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); start1[4] = -exp(start[4]);
+start1[5] = 1+exp(start[5]); start1[6] = exp(start[6]); start1[7] = start[7];  start1[8]  = exp(start[8])/(1+exp(start[8]));    
+start1[9] = exp(start[9])/(1+exp(start[9])); start1[10] = exp(start[10])/(1+exp(start[10])); start1[11] = (start[11]);  start1[12] = (start[12]);
+
+	if k==2;
+	start1[1] = exp(start[1]); 
+    start1[2]  = exp(start[2])/(1+exp(start[2]))-0.01;	
+    endif;
+
+
+elseif explanatory==4;
+
+_cml_Bounds = { 0.000000001 50, 0.0001 0.999, 0.0001 100, 0.0001 500, 0.0001 500, -100 50, 0.00000000001 0.99999, 0.0001 0.99999, 0.0001 0.999};
+
+
+start=loadd(working_folder$+"\\data\\parameters\\parameters_"$+distr$+"_"$+GAS_type$+"_explanatory_"$+explanatory_var$+"_"$+index$+"_threshold_lower_"$+ntos(progi)$+"_z_korr_"$+ntos(z_korr)$+"_rolling_"$+ntos(iter)$+".dat");
+
+start1=start;	
+start1[1] = exp(start[1]); start1[2]  = exp(start[2])/(1+exp(start[2])); start1[3] = exp(start[3]); 
+start1[4] = exp(start[4]); start1[5] = exp(start[5]); start1[6] = start[6];  start1[7]  = exp(start[7])/(1+exp(start[7]));    
+start1[8] = exp(start[8])/(1+exp(start[8])); start1[9] = exp(start[9])/(1+exp(start[9])); 
+		
+endif;
+
+
+
+__output=0;
+
+if k==2;
+    _cml_CovPar=2;
+endif;
+
+{end_par,function,gradient,cov,retcode} =@cmlprt@(cml((dane1_dur_crash[1:CASES_EST]),0,&li_GGamma_discrete_cml,start1));
+	
+
+
+
+if k==2; end_par=start1;	endif;
+
+{Ksi} = Ksi_comp_GGamma_discrete(end_par, dane1_dur_crash);
+
+endif;
+
+
+
+if iter==6;
+	
+@ ====== Printing out all the estimation resuls including the maximum log Likelihood and BIC ====== @
+
+logL=function*CASES_EST;	
+
+
+if explanatory ==2;	
+ 
+    
+    if printout==0;
+    
+    file_name = working_folder$+"replicated_results\\Replicated_Table3_and_Table_G6.txt";
+	OUTWIDTH 256;
+    output file=^file_name on;
+
+   
+    
+if distrib==1;
+param_B = end_par[1:6];     
+bl_B1 = sqrt(diag(cov));
+bl_B = bl_B1[1:6];    
+param_names_B = "omega_h"|"beta_h"|"alpha_h"|"eta_h"|"kappa"|"zeta";
+
+LOGL_B = logL;
+AIC_B = (-2*LOGL_B+2*(rows(end_par)))/CASES_EST;
+BIC_B = (-2*LOGL_B+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+if k==2;
+AIC_B = (-2*LOGL_B+2*(rows(end_par)-1))/CASES_EST;
+BIC_B = (-2*LOGL_B+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;   
+endif;
+
+if k==4;      
+param_size = end_par[7]|end_par[10]|end_par[9]|end_par[11:12]|end_par[8];     
+bl_size = bl_B1[7]|bl_B1[10]|bl_B1[9]|bl_B1[11:12]|bl_B1[8];    
+param_names_size="omega_s"|"beta_s"|"alpha_s"|"eta_1s"|"eta_2s"|"ksi";
+endif;
+
+elseif distrib==2;    
+param_DB = end_par[1:6];     
+bl_DB1 = sqrt(diag(cov));
+bl_DB = bl_DB1[1:6];    
+param_names_DB = "omega_h"|"beta_h"|"alpha_h"|"eta_h"|"kappa"|"zeta";
+
+
+
+LOGL_DB = logL;
+AIC_DB = (-2*LOGL_DB+2*(rows(end_par)))/CASES_EST;
+BIC_DB = (-2*LOGL_DB+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+    
+if k==2;
+AIC_DB = (-2*LOGL_DB+2*(rows(end_par)-1))/CASES_EST;
+BIC_DB = (-2*LOGL_DB+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;
+endif;    
+    
+elseif distrib==3; 
+param_BNB = end_par[1:6];     
+bl_BNB1 = sqrt(diag(cov));
+bl_BNB = bl_BNB1[1:6];      
+param_names_BNB="omega_h"|"beta_h"|"alpha_h"|"eta_h"|"r"|"tau";   
+    
+if k==1 or k==3;    
+param_size = end_par[7]|end_par[10]|end_par[9]|end_par[11:12]|end_par[8];     
+bl_size = bl_BNB1[7]|bl_BNB1[10]|bl_BNB1[9]|bl_BNB1[11:12]|bl_BNB1[8];    
+param_names_size="omega_s"|"beta_s"|"alpha_s"|"eta_1s"|"eta_2s"|"ksi";
+endif;
+
+LOGL_BNB = logL;
+AIC_BNB = (-2*LOGL_BNB+2*(rows(end_par)))/CASES_EST;
+BIC_BNB = (-2*LOGL_BNB+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+if k==2;
+AIC_BNB = (-2*LOGL_BNB+2*(rows(end_par)-1))/CASES_EST;
+BIC_BNB = (-2*LOGL_BNB+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;
+endif;
+
+elseif distrib==4; 
+param_W = end_par[1:5]|miss();     
+bl_W0 = sqrt(diag(cov));
+bl_W = bl_W0[1:5]|miss();      
+param_names_W="omega_h"|"beta_h"|"alpha_h"|"eta_h"|"gamma"|"";
+    
+
+LOGL_W = logL;
+AIC_W = (-2*LOGL_W+2*(rows(end_par)))/CASES_EST;
+BIC_W = (-2*LOGL_W+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+
+if k==2;  
+AIC_W = (-2*LOGL_W+2*(rows(end_par)-1))/CASES_EST;
+BIC_W = (-2*LOGL_W+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;
+endif;
+
+elseif distrib==5; 
+param_DW = end_par[1:5]|miss();     
+bl_DW0 = sqrt(diag(cov));
+bl_DW = bl_DW0[1:5]|miss();      
+param_names_DW="omega_h"|"beta_h"|"alpha_h"|"eta_h"|"gamma"|"";
+
+LOGL_DW = logL;
+AIC_DW = (-2*LOGL_DW+2*(rows(end_par)))/CASES_EST;
+BIC_DW = (-2*LOGL_DW+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+
+if k==2; 
+AIC_DW = (-2*LOGL_DW+2*(rows(end_par)-1))/CASES_EST;
+BIC_DW = (-2*LOGL_DW+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;  
+endif;
+
+
+if k==2;    
+param_size = end_par[6]|end_par[9]|end_par[8]|end_par[10:11]|end_par[7];     
+bl_size = bl_DW0[6]|bl_DW0[9]|bl_DW0[8]|bl_DW0[10:11]|bl_DW0[7];      
+param_names_size="omega_s"|"beta_s"|"alpha_s"|"eta_1s"|"eta_2s"|"ksi";
+endif;
+
+elseif distrib==6; 
+param_GG = end_par[1:4]|end_par[6]|end_par[5];     
+bl_GG0 = sqrt(diag(cov));
+bl_GG = bl_GG0[1:4]|bl_GG0[6]|bl_GG0[5];       
+param_names_GG="omega_h"|"beta_h"|"alpha_h"|"eta_h"|"gamma"|"ni";
+
+LOGL_GG = logL;
+AIC_GG = (-2*LOGL_GG+2*(rows(end_par)-1))/CASES_EST;
+BIC_GG = (-2*LOGL_GG+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;
+    
+if k==2;
+AIC_GG = (-2*LOGL_GG+2*(rows(end_par)-2))/CASES_EST;
+BIC_GG = (-2*LOGL_GG+(rows(end_par)-2)*ln(CASES_EST))/CASES_EST;
+endif;
+
+elseif distrib==7; 
+param_DGG = end_par[1:4]|end_par[6]|end_par[5];     
+bl_DGG0 = sqrt(diag(cov));
+bl_DGG = bl_DGG0[1:4]|bl_DGG0[6]|bl_DGG0[5];      
+param_names_DGG="omega_h"|"beta_h"|"alpha_h"|"eta_h"|"gamma"|"ni"; 
+
+
+
+LOGL_DGG = logL;
+AIC_DGG = (-2*LOGL_DGG+2*(rows(end_par)))/CASES_EST;
+BIC_DGG = (-2*LOGL_DGG+(rows(end_par))*ln(CASES_EST))/CASES_EST;
+if k==2; 
+AIC_DGG = (-2*LOGL_DGG+2*(rows(end_par)-1))/CASES_EST;
+BIC_DGG = (-2*LOGL_DGG+(rows(end_par)-1)*ln(CASES_EST))/CASES_EST;    
+endif;
+
+spaces=" ||             "| " || "|" || "|" || "|" || "|" || "; 
+if k==1;
+print "============================================";
+print "This is the replication of Table 3:         ";
+print "============================================";
+print "Maximum likelihood estimates for the SPOT models applied to Dow Jones from January 2,
+1981, to December 30, 2020";
+elseif k==2;
+print "===================================================";
+print "This is the replication of Table G6 (in Appendix G):         ";
+print "===================================================";
+print "Maximum likelihood estimates for the SPOT models applied to NASDAQ from January 2,
+1981, to December 30, 2020";
+elseif k==3;
+print "===================================================";
+print "This is the replication of Table G6 (in Appendix G):         ";
+print "===================================================";
+print "Maximum likelihood estimates for the SPOT models applied to S&P500 from January 2,
+1981, to December 30, 2020";  
+elseif k==4;
+print "===================================================";
+print "This is the replication of Table G6 (in Appendix G):    ";
+print "===================================================";
+print "Maximum likelihood estimates for the SPOT models applied to Wilshire from January 2,
+1981, to December 30, 2020";
+endif;
+
+print "-------------------------------------------";    
+print "Conditional distribution of inter-exceedance times";
+print "-------------------------------------------";
+    
+"            W                 ||      B                             ||      GG                            ||      DW                            ||      DB                            ||      DGG                           ||      BNB                          ";
+    
+"param.        est.      std.  ||      param.        est.      std.  ||      param.        est.      std.  ||      param.        est.      std.  ||      param.        est.      std.  ||      param.        est.      std.  ||      param.        est.      std.  ";
+
+seb= param_names_W~param_W~bl_W~spaces~param_names_B~param_B~bl_B~spaces~param_names_GG~param_GG~bl_GG~spaces~param_names_DW~param_DW~bl_DW~spaces~param_names_DB~param_DB~bl_DB~spaces~
+    param_names_DGG~param_DGG~bl_DGG~spaces~param_names_BNB~param_BNB~bl_BNB~spaces;
+
+let mask[1,28]= 0 1 1 0   0 1 1 0   0 1 1 0   0 1 1 0   0 1 1 0   0 1 1 0   0 1 1 0;
+let fmt[28,3]= "-*.*s " 8 8 "*.*lf" 10 3 "*.*lf" 10 3 "-*.*s " 8 8 "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3   "-*.*s " 8 8  "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3 "-*.*s "  8 8 
+    "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3   "-*.*s " 8 8
+    "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3 "-*.*s "  8 8 "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3 "-*.*s " 8 8  "-*.*s " 8 8 "*.*lf" 10 3  "*.*lf" 10 3  "-*.*s " 8 8;
+
+d=printfm(seb, mask, fmt);   
+print "---------------------------------------------------";    
+print "Conditional GP distribution of exceedance magnitudes";
+print "--------------------------------------------------- ";
+    
+ seb_s=param_names_size~param_size~bl_size;  
+ let mask[1,3]= 0 1 1;
+ let fmt[3,3]= "-*.*s " 8 8 "*.*lf" 10 3 "*.*lf" 10 3;
+ d=printfm(seb_s, mask, fmt); 
+ 
+print "---------------------------------------------------";    
+print "Log Likelihood (LogL) and Information Criteria";
+print "--------------------------------------------------- ";
+print "B                   || W               || GG              ||DW               || DB              ||DGG              || BNB             ||";
+spaces=" || "| " || "|" || ";
+seb_ll = ("LogL"|"AIC"|"BIC")~(LOGL_W|AIC_W|BIC_W)~spaces~(LOGL_B|AIC_B|BIC_B)~spaces~(LOGL_GG|AIC_GG|BIC_GG)~spaces~(LOGL_DW|AIC_DW|BIC_DW)~spaces~(LOGL_DB|AIC_DB|BIC_DB)~spaces
+~(LOGL_DGG|AIC_DGG|BIC_DGG)~spaces~(LOGL_BNB|AIC_BNB|BIC_BNB)~spaces;
+
+let mask[1,15]= 0 1  0 1  0 1  0 1  0 1  0 1  0 1  0;
+
+let fmt[15,3]= "-*.*s " 8 8 "*.*lf" 10 3  
+               "-*.*s " 8 8 "*.*lf" 10 3 
+               "-*.*s " 8 8 "*.*lf" 10 3 
+               "-*.*s " 8 8 "*.*lf" 10 3 
+               "-*.*s " 8 8 "*.*lf" 10 3 
+               "-*.*s " 8 8 "*.*lf" 10 3 
+               "-*.*s " 8 8 "*.*lf" 10 3 "-*.*s " 8 8 ;
+
+d=printfm(seb_ll, mask, fmt); 
+
+
+
+OUTPUT OFF; 
+
+
+endif; 
+endif; 
+
+
+endif;
+
+endif; 
+
+
+dane3=real((dane1~ksi[.,1]~ksi[.,2])|dane2~(meanc(ksi[.,1])*ones(rows(dane2),1))~(meanc(ksi[.,2])*ones(rows(dane2),1)));
+
+dane3=dane3~(1/dane3[.,15]);
+
+Razem=sortc(dane3,21);
+
+
+for i(2,rows(Razem),1);
+	
+	if razem[i, 17]==0;
+		
+		Razem[i, 19] = Razem[i-1, 19];
+		Razem[i, 20] = Razem[i-1, 20];
+		
+	endif;
+	
+endfor;
+
+Razem=sortc(Razem, 15);
+
+
+Ksi1=Razem[.,19];
+dur=Razem[.,16];
+
+dur[1]=1;
+
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/*+++++++ Deriving the time-varying hazard function and the time-varying GP scale parameters for each day +++ */
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+
+/* ===================================*/
+/* ===================================*/
+/*  Continuous Burr distribution   */
+/* ===================================*/
+/* ===================================*/
+
+
+if distrib==1;
+	
+if explanatory <4;
+kappa  = end_par[5];
+sigma2 = end_par[6];
+pareto_k=end_par[8];
+
+elseif 	explanatory ==4;
+kappa  = end_par[4];
+sigma2 = end_par[5];
+endif;
+
+intensity= ((kappa*sigma2./ksi1).*(dur./ksi1).^(kappa-1))./(1+((dur./ksi1).^kappa));
+
+
+
+if explanatory ==4;
+	
+    omegas = end_par[6];	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+endif;	
+
+if explanatory <4;
+	
+    omegas = (end_par[7]);	
+    pareto_k = end_par[8];
+	alphas1 = end_par[9];
+	betas1 = end_par[10];
+	alphas2 = end_par[11];
+	alphas3= 1;
+	alphas4= 1;
+	if explanatory==2;
+	alphas2 = end_par[11];
+	alphas3= end_par[12];
+	endif;
+endif;	
+
+if gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash))))/(1-betas1);
+	elseif explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)))))/(1-betas1);
+	elseif explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3)-1)/alphas3)/(1-betas1);
+	endif;
+endif;
+
+i=2;
+
+do while i<=n;
+
+
+if gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i]));
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i])));
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+
+pareto_scale=exp(pareto_scale1);
+
+
+/* ===================================*/
+/* ===================================*/
+/*  Discrete Burr distribution   */
+/* ===================================*/
+/* ===================================*/
+
+
+
+elseif distrib==2;
+
+	
+if explanatory <4;
+kappa  = (end_par[5]);
+sigma2 = (end_par[6]);
+elseif 	explanatory ==4;
+kappa  = (end_par[4]);
+sigma2 = (end_par[5]);
+endif;
+
+intensity= (((1+((dur-1)./ksi1).^kappa).^(-sigma2))-((1+((dur+1-1)./ksi1).^kappa).^(-sigma2)))./((1+((dur-1)./ksi1).^kappa).^(-sigma2));	
+	
+
+if explanatory <4;
+	
+    omegas = end_par[7];	
+    pareto_k = (end_par[8]);
+	alphas1 = end_par[9];
+	betas1 = end_par[10];
+	alphas2 = end_par[11];
+	alphas3= 1;
+	alphas4= 1;
+	if explanatory==2;
+	alphas2 = end_par[11];
+	alphas3= end_par[12];
+	endif;
+	
+
+
+if gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash))))/(1-betas1);
+	elseif explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)))))/(1-betas1);
+	elseif explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3-1)/alphas3))/(1-betas1);
+	endif;
+endif;
+
+i=2;
+
+do while i<=n;
+
+
+if gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i]));
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i])));
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+
+pareto_scale=exp(pareto_scale1);
+
+pareto_k=end_par[8];
+
+elseif explanatory ==4;
+
+pareto_scale=Razem[.,20];
+
+pareto_k=end_par[7];
+
+endif;
+
+
+
+
+/* ===================================*/
+/* ===================================*/
+/*  BNB distribution   */
+/* ===================================*/
+/* ===================================*/
+
+
+
+
+elseif distrib==3;
+
+		
+	
+	
+if explanatory <4;
+r  = end_par[5];
+alpha = end_par[6];
+pareto_k=end_par[8];
+elseif explanatory ==4;	
+r  = end_par[4];
+alpha = end_par[5];
+pareto_k=end_par[7];
+endif;
+
+pdf = 	exp(loggamma(dur-1+r)-loggamma(dur)-loggamma(r)).*beta(alpha+r, (alpha-1)*ksi1/r+dur-1)./(beta(alpha, (alpha-1)*ksi1/r));
+	
+_pdf=zeros(rows(pdf), 1000+1);
+_survi=zeros(rows(pdf), 1);
+
+
+for dd(1, 1000+1, 1);
+	
+_pdf[.,dd]= exp(loggamma(dd-1+r)-loggamma(dd)-loggamma(r)).*beta(alpha+r, (alpha-1)*ksi1./r+dd-1)./(beta(alpha, (alpha-1)*ksi1/r));
+	
+
+endfor;
+
+
+_cdf= cumsumc(_pdf[.,.]'); 
+
+_surv= 1-_cdf[.,.]';
+
+for i(1, rows(pdf), 1);
+	
+	if dur[i]==1;
+	_survi[i]=1;
+	elseif 	dur[i]>1;
+   _survi[i]=_surv[i, dur[i]-1];	
+	endif;
+	
+endfor;
+
+intensity=pdf./_survi;
+
+
+if explanatory <4;
+	
+if gas_gas ==1;
+    omegas = (end_par[7]);	
+    pareto_k = end_par[8];
+	alphas1 = end_par[9];
+	betas1 = end_par[10];
+	alphas2 = end_par[11];
+	alphas3= 1;
+	alphas4= 1;
+		if explanatory==2;
+		alphas2 = end_par[11];
+	    alphas3= end_par[12];
+		endif;
+endif;
+
+elseif explanatory ==4;
+    omegas = (end_par[6]);	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+
+
+endif;
+
+if gas_gas==0;
+pareto_scale1=(ones(n,1))*(omegas+alphas1*meanc(y[1:CASES_EST]))/(1-betas1); 
+elseif gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3)-1)/alphas3)/(1-betas1);
+	endif;
+
+endif;
+
+i=2;
+
+do while i<=n;
+
+if gas_gas==0;
+pareto_scale1[i,1]= omegas  + alphas1*(abs(dane[i-dur[i],14])-prog)+betas1*pareto_scale1[i-dur[i],1];
+
+elseif gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i])^alphas3);
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i]))^alphas3);
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+if gas_gas==1;
+    pareto_scale=exp(pareto_scale1);
+endif;
+
+	
+	
+
+
+/* ===================================*/
+/* ===================================*/
+/*  Continuous Weibull distribution   */
+/* ===================================*/
+/* ===================================*/
+
+elseif distrib==4;
+
+	
+	
+if explanatory <4;
+gamm  = end_par[5];
+pareto_k=end_par[7];
+elseif explanatory ==4;	
+gamm  = end_par[4];
+pareto_k=end_par[6];
+endif;
+
+intensity=(exp(ln(gamm/dur) + (gamm*ln(dur./ksi1)) - (dur./ksi1).^gamm))./exp(-((1/ksi1.*(dur)).^gamm));
+
+if explanatory <4;
+	
+if gas_gas ==1;
+    omegas = end_par[6];	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = end_par[10];
+	alphas3= 1;
+	alphas4= 1;
+		if explanatory==2;
+		alphas2 = end_par[10];
+	    alphas3= end_par[11];
+		endif;
+endif;
+
+
+elseif explanatory ==4;
+	
+    omegas = end_par[5];	
+    pareto_k = end_par[6];
+	alphas1 = end_par[7];
+	betas1 = end_par[8];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+	
+endif;	
+	
+
+
+if gas_gas==0;
+pareto_scale1=(ones(n,1))*(omegas+alphas1*meanc(y[1:CASES_EST]))/(1-betas1); 
+elseif gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3-1)/alphas3))/(1-betas1);
+	endif;
+
+endif;
+
+i=2;
+
+do while i<=n;
+
+if gas_gas==0;
+pareto_scale1[i,1]= omegas  + alphas1*(abs(dane[i-dur[i],14])-prog)+betas1*pareto_scale1[i-dur[i],1];
+
+elseif gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i])^alphas3);
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i]))^alphas3);
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+if gas_gas==1;
+    pareto_scale=exp(pareto_scale1);
+endif;
+
+
+		
+	
+/* ===================================*/
+/* ===================================*/
+/*  Discrete Weibull distribution   */
+/* ===================================*/
+/* ===================================*/	
+	
+
+
+elseif distrib==5;
+		
+	
+if explanatory <4;
+gamm  = end_par[5];
+pareto_k=end_par[7];
+elseif explanatory ==4;	
+gamm  = end_par[4];
+pareto_k=end_par[6];
+endif;
+		
+
+	intensity=(exp(-((1/ksi1.*(dur-1)).^gamm))-exp(-((1/ksi1.*(dur-1+1)).^gamm)))./exp(-((1/ksi1.*(dur-1)).^gamm));
+
+if explanatory <4;
+	
+if gas_gas ==1;
+    omegas = end_par[6];	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = end_par[10];
+	alphas3= 1;
+	alphas4= 1;
+		if explanatory==2;
+		alphas2 = end_par[10];
+	    alphas3= end_par[11];
+		endif;
+endif;
+
+
+elseif explanatory ==4;
+	
+    omegas = end_par[5];	
+    pareto_k = end_par[6];
+	alphas1 = end_par[7];
+	betas1 = end_par[8];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+	
+endif;	
+	
+
+
+if gas_gas==0;
+pareto_scale1=(ones(n,1))*(omegas+alphas1*meanc(y[1:CASES_EST]))/(1-betas1); 
+elseif gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)).^alphas3)))/(1-betas1);
+	endif;
+	if explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3-1)/alphas3))/(1-betas1);
+	endif;
+
+endif;
+
+i=2;
+
+do while i<=n;
+
+if gas_gas==0;
+pareto_scale1[i,1]= omegas  + alphas1*(abs(dane[i-dur[i],14])-prog)+betas1*pareto_scale1[i-dur[i],1];
+
+elseif gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i])^alphas3);
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i]))^alphas3);
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+if gas_gas==1;
+    pareto_scale=exp(pareto_scale1);
+endif;
+
+
+/* ===================================*/
+/* ===================================*/
+
+@ GGamma distribution @
+
+/* ===================================*/
+/* ===================================*/
+
+
+elseif distrib==6;
+	
+ 	
+	
+	
+if explanatory <4;
+alphagg  = end_par[5];
+gammagg = end_par[6];
+pareto_k=end_par[8];
+
+elseif 	explanatory ==4;
+alphagg  = end_par[4];
+gammagg = end_par[5];
+pareto_k=end_par[7];
+endif;
+
+intensity= exp(-(loggamma(alphagg)) +ln(gammagg) -ln(dur) + (gammagg * alphagg * ln(dur./ksi1))
+         -((dur./ksi1).^gammagg))./(1-CDFGAM(alphagg, (dur./ksi1).^gammagg));
+
+if explanatory ==4;
+	
+    omegas = end_par[6];	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+endif;	
+
+if explanatory <4;
+	
+    omegas = end_par[7];	
+    pareto_k = end_par[8];
+	alphas1 = end_par[9];
+	betas1 = end_par[10];
+	alphas2 = end_par[11];
+	alphas3= 1;
+	alphas4= 1;
+	if explanatory==2;
+	alphas2 = end_par[11];
+	alphas3= end_par[12];
+	endif;
+endif;	
+
+if gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash))))/(1-betas1);
+	elseif explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)))))/(1-betas1);
+	elseif explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3)-1)/alphas3)/(1-betas1);
+	endif;
+endif;
+
+i=2;
+
+do while i<=n;
+
+
+if gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i]));
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i])));
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+
+pareto_scale=exp(pareto_scale1);
+
+/* ===================================*/
+/* ===================================*/
+
+@ DGGamma distribution @
+
+/* ===================================*/
+/* ===================================*/
+
+
+elseif distrib==7;
+	
+ 	
+	
+if explanatory <4;
+alphagg  = end_par[5];
+gammagg = end_par[6];
+pareto_k= end_par[8];
+
+elseif 	explanatory ==4;
+alphagg  = end_par[4];
+gammagg = end_par[5];
+endif;
+
+intensity= (1-cdfgam(alphagg, ((dur-1)./ksi1).^gammagg) - (1-cdfgam(alphagg, (dur./ksi1).^gammagg)))./(1-cdfgam(alphagg, ((dur-1)./ksi1).^gammagg));
+
+if explanatory ==4;
+	
+    omegas = end_par[6];	
+    pareto_k = end_par[7];
+	alphas1 = end_par[8];
+	betas1 = end_par[9];
+	alphas2 = 0;
+	alphas3= 1;
+	alphas4= 1;
+endif;	
+
+if explanatory <4;
+	
+    omegas = end_par[7];	
+    pareto_k = end_par[8];
+	alphas1 = end_par[9];
+	betas1 = end_par[10];
+	alphas2 = end_par[11];
+	alphas3= 1;
+	alphas4= 1;
+	if explanatory==2;
+	alphas2 = @exp@(end_par[11]);
+	alphas3= end_par[12];
+	endif;
+endif;	
+
+if gas_gas==1;
+	if explanatory>=3;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((dane1_dur_crash))))/(1-betas1);
+	elseif explanatory==1;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc(((ln(dane1_dur_crash)))))/(1-betas1);
+	elseif explanatory==2;
+pareto_scale1=ones(n,1)*(omegas + alphas2*meanc((((dane1_dur_crash)).^alphas3)-1)/alphas3)/(1-betas1);
+	endif;
+endif;
+
+i=2;
+
+do while i<=n;
+
+
+if gas_gas==1;
+	if explanatory>=3;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((dur[i]));
+	endif;
+	if explanatory==1;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*((ln(dur[i])));
+	endif;
+	if explanatory==2;
+	pareto_scale1[i,1]= omegas  + alphas1*((abs(dane[i-dur[i],14])-prog)-exp(pareto_scale1[i-dur[i],1]))/(exp(pareto_scale1[i-dur[i],1])+pareto_k*(abs(dane[i-dur[i],14])-prog))
+	+ betas1*pareto_scale1[i-dur[i],1]
+	+alphas2*(((dur[i]))^alphas3-1)/alphas3;
+	endif;
+endif;
+
+i=i+1;
+endo;
+
+
+pareto_scale=exp(pareto_scale1);
+
+endif;
+
+
+
+E_size=pareto_scale;
+E_dur=ksi1;
+
+if iter==1;
+intensit_role=intensity[1:n];
+pareto_scale_role=pareto_scale[1:n];
+pareto_k_role=pareto_k*ones(n,1);
+ksi1_role=ksi1[1:n];
+prog_role=prog*ones(n,1);
+elseif iter>=1 and iter<7;
+intensit_role=intensit_role|intensity[CASES_EST_FULL+1:n];
+pareto_scale_role=pareto_scale_role|pareto_scale[CASES_EST_FULL+1:n];
+ksi1_role=ksi1[CASES_EST_FULL+1:n];
+pareto_k_role=pareto_k_role|(pareto_k*ones(n-CASES_EST_FULL,1));
+prog_role=prog_role|prog*ones(n-CASES_EST_FULL,1);
+endif;
+
+endif; @ end of: if iter <=6 @
+
+
+if iter==7 or iter==8;
+
+intensity=intensit_role;
+pareto_scale=pareto_scale_role;
+pareto_k=pareto_k_role;
+prog=prog_role;
+	
+@ === Deriving VaR and ES as well as the scoring functions === @
+
+
+    VaR_95=prog*1 + (pareto_scale./pareto_k).*((0.05/intensity).^(-pareto_k)-1);
+    ES_95=((prog*1 + (pareto_scale./pareto_k).*((0.05/intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k));
+
+    VaR_95=(VaR_95 .le prog).*prog + (VaR_95 .> prog).*VaR_95;
+
+    ES_95=(VaR_95 .le prog).*(prog/(1-pareto_k) + (pareto_scale-pareto_k.*prog)./(1-pareto_k)) + (VaR_95 .> prog).*ES_95;
+
+
+	excerd_95= (-Razem[.,14].*1).>VaR_95[.,1];
+
+    FZG_095=(excerd_95-0.05).*(-VaR_95)-excerd_95.*Razem[.,14]
+    + (1/0.05)*exp(-ES_95)./(1+exp(-ES_95)).*excerd_95.*(-VaR_95-Razem[.,14]) +(-ES_95+VaR_95).*exp(-ES_95)./(1+exp(-ES_95))+ln(2/(1+exp(-ES_95)));
+    
+    AL_095=-ln((0.05-1)/(-ES_95))-(Razem[.,14]-(-VaR_95)).*(0.05-excerd_95)./(0.05*(-ES_95)) + Razem[.,14]./(-ES_95);
+    FZ0_095= -(1/(0.05*(-ES_95))).*excerd_95.*(-VaR_95-Razem[.,14]) + VaR_95./ES_95+ln(ES_95)-1;
+
+
+    VaR_975=prog*1 + (pareto_scale./pareto_k).*((0.025/intensity).^(-pareto_k)-1);
+    ES_975=((prog*1 + (pareto_scale./pareto_k).*((0.025/intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k));
+
+
+    VaR_975=(VaR_975 .le prog).*prog + (VaR_975 .> prog).*VaR_975;
+    ES_975=(VaR_975 .le prog).*(prog/(1-pareto_k) + (pareto_scale-pareto_k.*prog)./(1-pareto_k)) + (VaR_975 .> prog).*ES_975;
+
+
+	excerd_975= (-Razem[.,14].*1).>VaR_975[.,1];
+
+    FZG_0975=(excerd_975-0.025).*(-VaR_975)-excerd_975.*Razem[.,14]
+    + (1/0.025)*exp(-ES_975)./(1+exp(-ES_975)).*excerd_975.*(-VaR_975-Razem[.,14]) +(-ES_975+VaR_975).*exp(-ES_975)./(1+exp(-ES_975))+ln(2/(1+exp(-ES_975)));
+    
+    AL_0975=-ln((0.025-1)/(-ES_975))-(Razem[.,14]-(-VaR_975)).*(0.025-excerd_975)./(0.025*(-ES_975)) + Razem[.,14]./(-ES_975);
+    FZ0_0975= -(1/(0.025*(-ES_975))).*excerd_975.*(-VaR_975-Razem[.,14]) + VaR_975./ES_975+ln(ES_975)-1;
+
+    VaR_99=prog*1 + (pareto_scale./pareto_k).*((0.01/intensity).^(-pareto_k)-1);
+    ES_99=((prog*1 + (pareto_scale./pareto_k).*((0.01/intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k));
+
+
+    VaR_99=(VaR_99 .le prog).*prog + (VaR_99 .> prog).*VaR_99;
+    ES_99=(VaR_99 .le prog).*(prog/(1-pareto_k) + (pareto_scale-pareto_k.*prog)./(1-pareto_k)) + (VaR_99 .> prog).*ES_99;
+
+
+	excerd_99= (-Razem[.,14].*1).>VaR_99[.,1];
+
+    FZG_099=(excerd_99-0.01).*(-VaR_99)-excerd_99.*Razem[.,14]
+    + (1/0.01)*exp(-ES_99)./(1+exp(-ES_99)).*excerd_99.*(-VaR_99-Razem[.,14]) +(-ES_99+VaR_99).*exp(-ES_99)./(1+exp(-ES_99))+ln(2/(1+exp(-ES_99)));
+
+    AL_099=-ln((0.01-1)/(-ES_99))-(Razem[.,14]-(-VaR_99)).*(0.01-excerd_99)./(0.01*(-ES_99)) + Razem[.,14]./(-ES_99);
+
+    FZ0_099= -(1/(0.01*(-ES_99))).*excerd_99.*(-VaR_99-Razem[.,14]) + VaR_99./ES_99+ln(ES_99)-1;
+
+
+	
+@ Storing ==== all the calculated series into one matrix ==== @
+	
+data_VaR= dat[.,13]~ret~ind_crash_down~dur~ksi1~intensity~pareto_scale~(prog*1 + (pareto_scale./pareto_k).*((0.01./intensity).^(-pareto_k)-1))~((prog*1 + (pareto_scale./pareto_k).*((0.01./intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k))
+~(prog*1 + (pareto_scale./pareto_k).*((0.025./intensity).^(-pareto_k)-1))~((prog*1 + (pareto_scale./pareto_k).*((0.025./intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k))
+~AL_099~FZG_099~AL_0975~FZG_0975~AL_095~FZG_095~FZ0_095~FZ0_0975~FZ0_099~(prog*1 + (pareto_scale./pareto_k).*((0.05./intensity).^(-pareto_k)-1))
+	~((prog*1 + (pareto_scale./pareto_k).*((0.05./intensity).^(-pareto_k)-1))./(1-pareto_k)+(pareto_scale-pareto_k.*prog)./(1-pareto_k))~dat[.,8]~dat[.,9];
+
+
+data_VaR= dat[.,13]~ret~ind_crash_down~dur~ksi1~intensity~pareto_scale~VaR_99~ES_99
+~VaR_975~ES_975
+~AL_099~FZG_099~AL_0975~FZG_0975~AL_095~FZG_095~FZ0_095~FZ0_0975~FZ0_099~VaR_95~ES_95
+	~dat[.,8]~dat[.,9];
+
+@ Saving the matrices with the data@
+
+if distrib==3;
+file_name1 = working_folder$+"output_data\\VaR_BNB_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+
+    
+elseif distrib==1;
+file_name1 = working_folder$+"output_data\\VaR_Burr_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+    
+    
+elseif distrib==2;
+file_name1 = working_folder$+"output_data\\VaR_DBurr_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+    
+    
+elseif distrib==4;
+file_name1 = working_folder$+"output_data\\VaR_Weibull_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+
+    
+elseif distrib==5;
+file_name1 = working_folder$+"output_data\\VaR_DWeibull_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+    
+    
+elseif distrib==6;
+file_name1 = working_folder$+"output_data\\VaR_GGamma_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+
+    
+elseif distrib==7;
+file_name1 = working_folder$+"output_data\\VaR_DGGamma_"$+index$+"_explanatory_"$+explanatory_var$+"_rolling.txt";
+    
+    
+endif;
+
+
+
+    if printout==1;
+
+    OUTWIDTH 256;	
+    output file=^file_name1 reset;
+
+    OUTWIDTH 256;
+    print data_VaR;
+    OUTPUT OFF; 
+
+    endif;
+
+endif;
+
+
+iter=iter+1;
+endo;
+
+
+distrib=distrib+1;
+
+endo;
+
+
+k=k+1;
+
+endo;
+
+printElapsedTime();
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+/***********************************************************************************************/
+/**** Section of necessary procedures ****/
+
+
+@=== BMB SPOT models ===@
+
+proc li_BNB_cml(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, llik, gammaBNB,  ksi, score;
+
+local pareto_k, omegas, alphas1, alphas2, alphas3, betas1, pareto_scale, pareto_scale1, r, alpha;
+
+if explanatory==2;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	r  = B[5];
+    alpha = B[6];	
+    omegas = (B[7]);	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	alphas3 = B[12];
+	
+	
+elseif explanatory==4;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	r  = B[4];
+    alpha = B[5];	
+    omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+	alphas3 = 1;			
+endif;
+	
+
+
+if gas_gas==1;
+gammaBNB=real((alpha-1)/r);
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+score=zeros(CASES_EST,1);		
+endif;
+
+if gas_gas==1;
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3-1)/alphas3))/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	psi1[i,1]= omega
+           + alpha1*gammaBNB*exp(psi1[i-1])*(digamma(gammaBNB*exp(psi1[i-1])+x[i-1,1]-1)+digamma(gammaBNB*exp(psi1[i-1])+alpha)+
+	       - digamma(gammaBNB*exp(psi1[i-1])+alpha+r+x[i-1,1]-1)-digamma(gammaBNB*exp(psi1[i-1])))
+           + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	score[i]=gammaBNB*exp(psi1[i-1])*(digamma(gammaBNB*exp(psi1[i-1])+x[i-1,1]-1)+digamma(gammaBNB*exp(psi1[i-1])+alpha)+
+	       - digamma(gammaBNB*exp(psi1[i-1])+alpha+r+x[i-1,1]-1)-digamma(gammaBNB*exp(psi1[i-1])));
+	
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1);
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+llik =loggamma(x-1+r)-loggamma(x)-loggamma(r)+ ln(beta(alpha+r, (alpha-1)*ksi/r+x-1)) - ln(beta(alpha, (alpha-1)*ksi/r))
+      + (dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+
+
+ retp(llik[2:(rows(llik))]);
+ 
+ 
+
+endp;
+
+
+
+/***********************************************************************************************/
+
+
+proc Ksi_comp_BNB(b,x);
+	
+local omega, alpha1, alpha2, beta1, psi1, i, gammaBNB, ksi;
+
+local pareto_k, omegas, alphas1, alphas2, alphas3, betas1, pareto_scale, pareto_scale1, r, alpha;
+
+if explanatory==2;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	r  = B[5];
+    alpha = B[6];	
+    omegas = (B[7]);	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	alphas3 =B[12];
+	
+elseif explanatory==4;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	r  = B[4];
+    alpha = B[5];	
+    omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+	alphas3 = 1;			
+endif;
+
+if gas_gas==1;
+gammaBNB=real((alpha-1)/r);
+psi1=ones(CASES,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);		
+endif;
+
+if gas_gas==1;
+if explanatory==1;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)))/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES;
+
+if gas_gas==1;
+	psi1[i,1]= omega
+           + alpha1*gammaBNB*exp(psi1[i-1])*(digamma(gammaBNB*exp(psi1[i-1])+x[i-1,1]-1)+digamma(gammaBNB*exp(psi1[i-1])+alpha)+
+	       - digamma(gammaBNB*exp(psi1[i-1])+alpha+r+x[i-1,1]-1)-digamma(gammaBNB*exp(psi1[i-1])))
+           + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3);
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1);
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+ retp(ksi~pareto_scale1);
+ 
+endp;
+
+/***********************************************************************************************/
+@ Weibull SPOT models @
+/***********************************************************************************************/
+
+
+proc li_Weibull_cml(b,x);
+	
+local omega, alpha1, alpha2, beta1, psi1, i, llik, gamm, korr, ksi, alphas3, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1;
+
+  if explanatory<4;	
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	
+	gamm  = B[5];
+	
+	omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = (B[10]);
+    alphas3=  B[11];
+	  
+elseif explanatory==4;		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	
+	gamm  = B[4];
+	
+	omegas = B[5];	
+    pareto_k = B[6];
+	alphas1 = B[7];
+	betas1 = B[8];
+	alphas2 = 0;	
+    alphas3=  1;
+endif;
+	
+if z_korr==1;
+ korr=GAMMA(1+(1/gamm));
+elseif z_korr==0;
+ korr=1;
+endif;
+
+if gas_gas==1;
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES_EST,1);
+
+	if explanatory==4;
+    psi1=ones(CASES_EST,1).*omega/(1-beta1);	
+	endif;
+	
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[11];
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	
+	psi1[i,1]= omega 
+	+ alpha1*(gamm*(x[i-1]*korr/exp(psi1[i-1]))^gamm-gamm)
+	+ beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+scor[i]=(gamm*(x[i-1]*korr/exp(psi1[i-1]))^gamm-gamm);
+	
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[11];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+
+ llik = (ln(gamm./X)) + (gamm*ln(X./ksi)) - ((X./ksi).^gamm) 
+ + (dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+
+ retp(llik[2:(rows(llik))]);
+ 
+endp;
+
+
+
+/***********************************************************************************************/
+
+
+proc li_Weibull_discrete_cml(b,x);
+	
+local omega, alpha1, alpha2, beta1, psi1, i, llik, gamm, korr, ksi, alphas3, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1;
+
+ if explanatory<4;	
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	
+	gamm  = B[5];
+	
+	omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = B[10];
+	if explanatory==2;
+	alphas2 = B[10];	
+	endif;
+
+elseif explanatory==4;		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];
+    alpha2 = 0;
+	
+	gamm  = B[4];
+	
+	omegas = B[5];	
+    pareto_k = B[6];
+	alphas1 = B[7];
+	betas1 = B[8];
+	alphas2 = 0;	
+endif;
+
+if z_korr==1;
+ korr=GAMMA(1+(1/gamm));
+elseif z_korr==0;
+ korr=1;
+endif; 
+
+if gas_gas==1;
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES_EST,1);
+
+	if explanatory==4;
+    psi1=ones(CASES_EST,1).*omega/(1-beta1);	
+	endif;
+	
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[11];
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	
+	psi1[i,1]= omega 
+	+ alpha1*(1/(exp(-((1*korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm))-exp(-((1*korr/exp(psi1[i-1]).*(x[i-1]-1+1)).^gamm)))*
+	((exp(-((korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1]-1)).^(gamm)))-(exp(-((korr/exp(psi1[i-1]).*(x[i-1])).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1])).^(gamm)))))
+	+ beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	scor[i]=(1/(exp(-((korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm))-exp(-((korr/exp(psi1[i-1]).*(x[i-1]-1+1)).^gamm)))*
+	((exp(-((korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1]-1)).^(gamm)))-(exp(-((korr/exp(psi1[i-1]).*(x[i-1])).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1])).^(gamm)))));
+
+endif;
+	
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[11];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;		
+	
+i=i+1;
+endo;
+
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+	
+ llik = ln(exp(-((1/ksi.*(x-1)).^gamm))-exp(-((1/ksi.*(x-1+1)).^gamm))) 
++ (dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+ 
+ retp(llik[2:(rows(llik))]);
+ 
+endp;
+
+
+
+
+proc Ksi_comp_Weibull(b,x);
+	
+local omega, alpha1, alpha2, beta1, psi1, i, gamm, scor, korr, ksi, alphas3;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1;
+
+  if explanatory<4;	
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	
+	gamm  = B[5];
+	
+	omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = B[10];
+	if explanatory==2;
+	alphas2 = B[10];	
+	endif;
+
+elseif explanatory==4;		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];
+    alpha2 = 0;
+	
+	gamm  = B[4];
+	
+	omegas = B[5];	
+    pareto_k = B[6];
+	alphas1 = B[7];
+	betas1 = B[8];
+	alphas2 = 0;	
+endif;
+
+if z_korr==1;
+ korr=GAMMA(1+(1/gamm));
+elseif z_korr==0;
+ korr=1;
+endif;
+
+if gas_gas==1;
+
+psi1=ones(CASES,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES,1);
+
+	if explanatory==4;
+    psi1=ones(CASES,1).*omega/(1-beta1);	
+	endif;
+	
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[11];
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES;
+
+if gas_gas==1;
+	
+	if distrib==4;
+	
+	psi1[i,1]= omega 
+	+ alpha1*(gamm*(x[i-1]*korr/exp(psi1[i-1]))^gamm-gamm)
+	+ beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+  
+		
+    elseif distrib==5;
+psi1[i,1]= omega 
+	+ alpha1*(1/(exp(-((1*korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm))-exp(-((1*korr/exp(psi1[i-1]).*(x[i-1]-1+1)).^gamm)))*
+	((exp(-((korr/exp(psi1[i-1]).*(x[i-1]-1)).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1]-1)).^(gamm)))-(exp(-((korr/exp(psi1[i-1]).*(x[i-1])).^gamm)))*gamm*(((korr/exp(psi1[i-1]).*(x[i-1])).^(gamm)))))
+	+ beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	endif;
+	
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[11];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1);
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+ retp(ksi~pareto_scale1);
+ 
+endp;
+
+
+
+/***********************************************************************************************/
+
+@ Burr SPOT models @
+/***********************************************************************************************/
+
+proc li_Burr_cml(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, llik, kappa, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, alphas3, betas1, pareto_scale, pareto_scale1, sigma2;
+
+if explanatory<4;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	kappa  = B[5];
+    sigma2 = B[6];	
+    omegas = B[7];	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	alphas3 = B[12];
+
+	
+elseif explanatory==4;
+
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	kappa  = B[4];
+    sigma2 = B[5];	
+    omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+	alphas3 = 1;
+			
+endif;
+
+
+if z_korr==1;
+ korr=exp(loggamma(1+(1/kappa))+loggamma((1/sigma2)-(1/kappa))-loggamma((1/sigma2)+1))/
+           (sigma2^(1+(1/kappa)));
+elseif z_korr==0;
+ korr=1;
+endif;
+
+if gas_gas==1;
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);	
+scor=zeros(CASES_EST,1);	
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+
+
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3-1)/alphas3))/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	scor[i]= -(kappa - kappa*sigma2*(x[i-1]*korr*exp(-psi1[i-1]))^kappa)/((x[i-1]*korr*exp(-psi1[i-1]))^kappa + 1);
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+endif;
+
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+ llik = ln(kappa) + ln(sigma2)-ln(ksi) + (kappa-1)*ln(X./ksi)
+           - (sigma2+1)*ln(1+(X./ksi).^kappa) 
+ + (dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+
+
+ retp(llik[2:(rows(llik))]);
+ 
+endp;
+
+/* ===============================================================*/
+
+proc li_Burr_discrete_cml(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, llik, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, kappa, sigma2;
+
+if explanatory<4;
+
+    omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	kappa  = B[5];
+    sigma2 = B[6];	
+    omegas = B[7];	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	alphas3 = B[12];
+
+	
+elseif explanatory==4;
+		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	kappa  = B[4];
+    sigma2 = B[5];	
+    omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+	alphas3 = 1;
+			
+endif;
+ 
+
+if gas_gas==1;
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES_EST,1);
+
+	if explanatory==4;
+    psi1=ones(CASES_EST,1).*omega/(1-beta1);	
+	endif;
+	
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[12];
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3-1)/alphas3))/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	
+	psi1[i,1]= omega 
+	+ alpha1*((1/(((1+((x[i-1]-1)./exp(psi1[i-1])).^kappa).^(-sigma2))-((1+(x[i-1]./exp(psi1[i-1])).^kappa).^(-sigma2))))
+*((sigma2*kappa*(1+((x[i-1]-1)/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1]-1)/exp(psi1[i-1]))^kappa 
+	- (sigma2*kappa*(1+((x[i-1])/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1])/exp(psi1[i-1]))^kappa))
+           + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+	scor[i]=((1/(((1+((x[i-1]-1)./exp(psi1[i-1])).^kappa).^(-sigma2))-((1+(x[i-1]./exp(psi1[i-1])).^kappa).^(-sigma2))))
+*((sigma2*kappa*(1+((x[i-1]-1)/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1]-1)/exp(psi1[i-1]))^kappa 
+	- (sigma2*kappa*(1+((x[i-1])/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1])/exp(psi1[i-1]))^kappa));
+	
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1);
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+ llik =ln((((1+((X-1)./ksi).^kappa).^(- sigma2))-((1+((X+1-1)./ksi).^kappa).^(-sigma2))))
+      + ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1);
+
+
+ retp(llik[2:(rows(llik))]);
+ 
+ 
+
+endp;
+
+/***********************************************************************************************/
+
+proc Ksi_comp_Burr(b,x);
+
+local omega, alpha1, alpha2, beta1, psi1, i, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, kappa, sigma2;
+
+if explanatory<4;
+
+    omega = B[1];
+	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];	
+	kappa  = B[5];
+    sigma2 = B[6];	
+    omegas = B[7];	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	alphas3 = B[12];
+
+	
+elseif explanatory==4;
+		
+	omega = B[1];
+	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = 0;	
+	kappa  = B[4];
+    sigma2 = B[5];	
+    omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+	alphas3 = 1;
+			
+endif;
+
+  
+if z_korr==1;
+ korr=exp(loggamma(1+(1/kappa))+loggamma((1/sigma2)-(1/kappa))-loggamma((1/sigma2)+1))/
+           (sigma2^(1+(1/kappa)));
+elseif z_korr==0;
+ korr=1;
+endif;
+
+if gas_gas==1;
+psi1=ones(CASES,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);	
+scor=zeros(CASES,1)	;
+endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)))/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES;
+
+if gas_gas==1;
+	
+	if distrib==1;
+	scor[i]= -(kappa - kappa*sigma2*(x[i-1]*korr*exp(-psi1[i-1]))^kappa)/((x[i-1]*korr*exp(-psi1[i-1]))^kappa + 1);
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+	elseif distrib==2;
+	psi1[i,1]= omega 
+	+ alpha1*((1/(((1+((x[i-1]-1)./exp(psi1[i-1])).^kappa).^(-sigma2))-((1+(x[i-1]./exp(psi1[i-1])).^kappa).^(-sigma2))))
+*((sigma2*kappa*(1+((x[i-1]-1)/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1]-1)/exp(psi1[i-1]))^kappa 
+	- (sigma2*kappa*(1+((x[i-1])/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1])/exp(psi1[i-1]))^kappa))
+           + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+	scor[i]=((1/(((1+((x[i-1]-1)./exp(psi1[i-1])).^kappa).^(-sigma2))-((1+(x[i-1]./exp(psi1[i-1])).^kappa).^(-sigma2))))
+*((sigma2*kappa*(1+((x[i-1]-1)/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1]-1)/exp(psi1[i-1]))^kappa 
+	- (sigma2*kappa*(1+((x[i-1])/exp(psi1[i-1]))^kappa)^(-sigma2-1))*((x[i-1])/exp(psi1[i-1]))^kappa));	
+	endif;	
+endif;
+	
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;	
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3);
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+ retp(ksi~pareto_scale1);
+
+endp;
+
+
+/**********************************************************************************************/
+@ Generalized Gamma SPOT models @
+/***********************************************************************************************/
+
+
+proc li_GGamma_cml(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, llik, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, alphagg, gammagg;
+
+if explanatory<4;	
+    omega =  B[1];
+	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];
+	
+	alphagg  = (B[5]);
+    gammagg = B[6];
+	
+	omegas = (B[7]);	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = (B[11]);
+	if explanatory==2;
+	alphas2 = (B[11]);	
+	endif;
+
+elseif explanatory==4;		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+    alpha2 = 0;
+	
+	alphagg  = B[4];
+    gammagg = B[5];
+	
+	omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+
+	
+endif;
+
+ 
+   
+korr=1;
+
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES_EST,1);
+
+	if explanatory==4;
+    psi1=ones(CASES_EST,1).*omega/(1-beta1);	
+	endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[12];
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	scor[i]= -alphagg*gammagg +gammagg*(x[i-1]*korr/exp(psi1[i-1])).^gammagg;
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+endif;
+
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+
+llik= -(loggamma(alphagg)) +ln(gammagg) -ln(x) + (gammagg * alphagg * ln(x./ksi))
+         - ((x./ksi).^gammagg)
++ (dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+
+ retp(llik[2:(rows(llik))]);
+
+
+endp;
+
+
+/* -------------------------------------- */
+
+PROC loggamma (x);
+
+/*
+Computes log of Gamma function
+*/
+
+   local z;
+     x=x+6;
+     z=1/(x.*x);
+     z=(((-0.000595238095238*z+0.000793650793651)
+          .*z-0.002777777777778).*z+0.083333333333333)./x;
+     z=(x-0.5).*ln(x)-x+0.918938533204673+z
+           -ln(x-1)-ln(x-2)-ln(x-3)-ln(x-4)-ln(x-5)-ln(x-6);
+   retp(z);
+endp;
+
+
+
+proc Ksi_comp_GGamma(b,x);
+	
+local omega, alpha1, alpha2, beta1, psi1, i, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, alphagg, gammagg;
+
+if explanatory<4;	
+    omega =  B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];
+	
+	alphagg  = B[5];
+    gammagg = B[6];
+	
+	omegas = (B[7]);	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = (B[11]);
+	if explanatory==2;
+	alphas2 = (B[11]);	
+	endif;
+
+elseif explanatory==4;		
+	omega = B[1];
+    beta1  = B[2];	
+	alpha1 = B[3];  
+    alpha2 = 0;
+	
+	alphagg  = B[4];
+    gammagg = B[5];
+	
+	omegas = (B[6]);	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;
+
+
+		
+endif;
+
+  
+   
+korr=1;
+
+
+psi1=ones(CASES,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES,1);
+
+	if explanatory==4;
+    psi1=ones(CASES,1).*omega/(1-beta1);	
+	endif;
+
+	if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[12];
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES;
+
+if gas_gas==1;
+	scor[i]= -alphagg*gammagg +gammagg*(x[i-1]*korr/exp(psi1[i-1])).^gammagg;
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+endif;
+
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+ retp(ksi~pareto_scale1);
+ 
+endp;
+
+
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+
+proc li_GGamma_discrete_cml(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, llik, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, alphagg, gammagg;
+
+if explanatory<4;	
+    omega =  (B[1]);	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];
+	
+	alphagg  = B[5];
+    gammagg = B[6];
+	
+	omegas = B[7];	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	if explanatory==2;
+	alphas2 = B[11];	
+	endif;
+
+elseif explanatory==4;		
+	omega = B[1];	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+    alpha2 = 0;
+	
+	alphagg  = B[4];
+    gammagg = B[5];
+	
+	omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;	
+endif;
+
+  
+korr=1;
+
+
+psi1=ones(CASES_EST,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES_EST,1);
+
+	if explanatory==4;
+    psi1=ones(CASES_EST,1).*omega/(1-beta1);	
+	endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[12];
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES_EST,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES_EST;
+
+if gas_gas==1;
+	scor[i]=  (1/(-cdfgam(alphagg, ((x[i-1]-1)./exp(psi1[i-1])).^gammagg) + cdfgam(alphagg, (x[i-1]./exp(psi1[i-1])).^gammagg)))*
+	((1/Gamma(alphagg))*(((x[i-1]-1)/exp(psi1[i-1])).^(gammagg*(alphagg-1))).*exp(-((x[i-1]-1)/exp(psi1[i-1]))^gammagg)*((x[i-1]-1)^gammagg)*gammagg*(exp(psi1[i-1]))^(-gammagg)
+	-(1/Gamma(alphagg))*(((x[i-1])/exp(psi1[i-1])).^(gammagg*(alphagg-1))).*exp(-((x[i-1])/exp(psi1[i-1]))^gammagg)*((x[i-1])^gammagg)*gammagg*(exp(psi1[i-1]))^(-gammagg));
+	
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+endif;
+
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+
+llik= ln(-cdfgam(alphagg, ((x-1)./ksi).^gammagg) + cdfgam(alphagg, (x./ksi).^gammagg))
++(dane1_ind_crash_down[1:CASES_EST].==1).*(ln(1)-ln(pareto_scale1)-(1/pareto_k+1)*ln(1+pareto_k*abs(y[1:CASES_EST])./pareto_scale1));
+
+ retp(llik[2:(rows(llik))]);
+
+
+endp;
+
+
+
+proc ksi_comp_GGamma_discrete(b,x);
+local omega, alpha1, alpha2, beta1, psi1, i, korr, ksi, scor;
+
+local pareto_k, omegas, alphas1, alphas2, betas1, pareto_scale, pareto_scale1, alphagg, gammagg;
+
+if explanatory<4;	
+    omega =  B[1];	
+    beta1  = B[2];	
+	alpha1 = B[3];  
+	alpha2 = B[4];
+	
+	alphagg  = B[5];
+    gammagg = B[6];
+	
+	omegas = B[7];	
+    pareto_k = B[8];
+	alphas1 = B[9];
+	betas1 = B[10];
+	alphas2 = B[11];
+	if explanatory==2;
+	alphas2 = B[11];	
+	endif;
+
+elseif explanatory==4;		
+	omega = (B[1]);
+    beta1  = B[2];	
+	alpha1 = B[3];  
+    alpha2 = 0;
+	
+	alphagg  = B[4];
+    gammagg = B[5];
+	
+	omegas = B[6];	
+    pareto_k = B[7];
+	alphas1 = B[8];
+	betas1 = B[9];
+	alphas2 = 0;	
+endif;
+
+  
+korr=1;
+
+
+psi1=ones(CASES,1).*(omega+alpha2*meanc(abs(y[1:CASES_EST])))/(1-beta1);
+scor=zeros(CASES,1);
+
+	if explanatory==4;
+    psi1=ones(CASES,1).*omega/(1-beta1);	
+	endif;
+
+if gas_gas==1;
+
+if explanatory==1;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((ln(x[1:CASES_EST])))))/(1-betas1);	
+elseif explanatory==2;
+alphas3=  B[12];
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc((((x[1:CASES_EST])).^alphas3)-1)/alphas3)/(1-betas1);
+elseif explanatory>=3;
+pareto_scale=ones(CASES,1)*(omegas+alphas2*meanc(((x[1:CASES_EST]))))/(1-betas1);
+endif;	
+
+endif;
+
+i=2;
+
+do while i<=CASES;
+
+if gas_gas==1;
+	scor[i]=  (1/(-cdfgam(alphagg, ((x[i-1]-1)./exp(psi1[i-1])).^gammagg) + cdfgam(alphagg, (x[i-1]./exp(psi1[i-1])).^gammagg)))*
+	((1/Gamma(alphagg))*(((x[i-1]-1)/exp(psi1[i-1])).^(gammagg*(alphagg-1))).*exp(-((x[i-1]-1)/exp(psi1[i-1]))^gammagg)*((x[i-1]-1)^gammagg)*gammagg*(exp(psi1[i-1]))^(-gammagg)
+	-(1/Gamma(alphagg))*(((x[i-1])/exp(psi1[i-1])).^(gammagg*(alphagg-1))).*exp(-((x[i-1])/exp(psi1[i-1]))^gammagg)*((x[i-1])^gammagg)*gammagg*(exp(psi1[i-1]))^(-gammagg));
+	
+	psi1[i,1]= omega 
+	       + alpha1*scor[i] + beta1*(psi1[i-1]) + alpha2*abs(y[i-1]);
+	
+endif;
+
+
+if gas_gas==1;	
+	
+	if explanatory==1;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((ln(x[i])));	
+	elseif explanatory==2;
+	alphas3=  B[12];		
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*(((x[i]))^alphas3-1)/alphas3;
+		
+    elseif explanatory>=3;
+pareto_scale[i,1]= omegas  + alphas1*(y[i-1]-exp(pareto_scale[i-1]))/((exp(pareto_scale[i-1,1])+pareto_k*y[i-1])) + betas1*pareto_scale[i-1,1]
+	+alphas2*((x[i]));	
+	endif;
+endif;	
+	
+i=i+1;
+endo;
+
+ksi=exp(psi1)/korr;
+
+if gas_gas==1;
+    pareto_scale1=exp(pareto_scale);
+endif;
+
+
+
+ retp(ksi~pareto_scale1);
+
+
+endp;
+
+
+
+
+proc(0)= settings_maximum_likelihood;
+    
+	if explanatory==2;
+       if distrib==1 or  distrib==2 or  distrib==3 or  distrib==6 or  distrib==7;
+
+	    if k==2;
+        _cml_Active=ones(12,1);
+		if distrib==6 or distrib==7;
+			
+		_cml_Active[1]=0;
+		endif;
+		
+		if progi>=0.037;
+			
+		
+		_cml_Active[8]=0;
+
+		endif;	
+
+	endif;
+
+   elseif distrib==4 or distrib==5;
+
+   if k==2;
+
+		
+		_cml_Active=ones(11,1);
+	   
+	
+		if progi>=0.04;
+			
+		
+		_cml_Active[7]=0;
+
+		endif;	
+
+	endif;
+	
+endif;
+
+endif;
+
+
+
+if explanatory==4;
+if distrib==1 or  distrib==2 or  distrib==3 or  distrib==6 or  distrib==7;
+
+	if k==2;
+        _cml_Active=ones(9,1);
+		
+		if distrib==6 or distrib==7;
+			
+		_cml_Active[1]=0;
+		
+			endif;
+		
+		if progi>=0.037;
+			
+		
+		_cml_Active[7]=0;
+
+		endif;	
+
+	endif;
+
+elseif distrib==4 or distrib==5 ;
+
+if k==2;
+
+		if progi>=0.04;
+		
+		_cml_Active=ones(8,1);
+		_cml_Active[6]=0;
+
+		endif;	
+
+	endif;
+	
+endif;
+endif;
+
+
+
+
+if explanatory==4;
+ if distrib==1 or  distrib==2 or  distrib==3 or  distrib==6 or  distrib==7;
+
+	if k==2;
+        _cml_Active=ones(9,1);
+		
+		if distrib==6 or distrib==7;
+		
+		
+		_cml_Active[1]=0;
+		endif;
+		
+		if progi>=0.037;
+		
+		
+		_cml_Active[7]=0;
+
+		endif;	
+
+	endif;
+
+	
+endif;    
+    
+endif;
+
+    
+    
+    
+endp;
+
+
+proc (0) = startCodeTimer();
+    // set the global time variable to the number
+    // of seconds since January 1, 1970 
+    __my_code_start_seconds = timeutc();
+endp;
+ 
+proc (1) = printElapsedTime();
+    local elapsed_sec;
+ 
+    // Compute the number of seconds elapsed
+    // since 'startCodeTimer' was called
+    elapsed_sec = timeutc() - __my_code_start_seconds;
+ 
+    // Multiply by 100, because 'etstr'
+    // assumes that the input is in hundredths of a second
+    retp(etstr(elapsed_sec * 100));
+endp; 
+
