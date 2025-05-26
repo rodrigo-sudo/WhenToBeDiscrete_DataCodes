@@ -28,10 +28,10 @@ stat <- function(a, v, e){
 start_time <- Sys.time()
 
 
-install.packages("this.path")
-install.packages("rugarch")
-install.packages("esback")
-install.packages("readxl")
+#install.packages("this.path")
+#install.packages("rugarch")
+#install.packages("esback")
+#install.packages("readxl")
 
 library(this.path)
 library(rugarch)
@@ -163,6 +163,10 @@ for (stock in c("DowJones", "NASDAQ", "SP500", "Wilshire")){
   }
   }
   
+      
+  # Set seed for the esback package used for VaR and ES backtesting  
+  set.seed(252525)
+      
   ES_099 = table_ES[which(table_ES[,1]>backtesting & table_ES[,1]<end_date),7]
   VaR_099 = table2[which(table2[,1]>backtesting & table2[,1]<end_date),7]
   
@@ -277,26 +281,26 @@ library(sandwich)
  excerd= as.matrix(ret<POT_VaR_099_BNB_expl);
  d[3,7]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_BNB_expl))+1; 
  
- k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, version = 3)
+ k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, B=0, version = 3)
  e[1,7]<-k$pvalue_onesided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, version = 3)
+ k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, B=0, version = 3)
  e[2,7]<-k$pvalue_onesided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, version = 3)
+ k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, B=0, version = 3)
  e[3,7]<-k$pvalue_onesided_asymptotic
  
  
- k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, version = 2)
+ k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, B=0, version = 2)
  f[1,7]<-k$pvalue_twosided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, version = 2)
+ k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, B=0, version = 2)
  f[2,7]<-k$pvalue_twosided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, version = 2)
+ k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, B=0, version = 2)
  f[3,7]<-k$pvalue_twosided_asymptotic
  
- k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, version = 1)
+ k = esr_backtest(r = ret, q = POT_VaR_095_BNB_expl, e = POT_ES_095_BNB_expl, alpha = 0.05, B=0, version = 1)
  g[1,7]<-k$pvalue_twosided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, version = 1)
+ k = esr_backtest(r = ret, q = POT_VaR_0975_BNB_expl, e = POT_ES_0975_BNB_expl, alpha = 0.025, B=0, version = 1)
  g[2,7]<-k$pvalue_twosided_asymptotic
- k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, version = 1)
+ k = esr_backtest(r = ret, q = POT_VaR_099_BNB_expl, e = POT_ES_099_BNB_expl, alpha = 0.01, B=0, version = 1)
  g[3,7]<-k$pvalue_twosided_asymptotic
  
   
@@ -347,25 +351,25 @@ library(sandwich)
   d[3,1]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_Burr_expl))+1; 
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, B=0, version = 3)
   e[1,1]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, B=0, version = 3)
   e[2,1]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, B=0, version = 3)
   e[3,1]<-k$pvalue_onesided_asymptotic
 
-  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, B=0, version = 2)
   f[1,1]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, B=0, version = 2)
   f[2,1]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, B=0, version = 2)
   f[3,1]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Burr_expl, e = POT_ES_095_Burr_expl, alpha = 0.05, B=0, version = 1)
   g[1,1]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Burr_expl, e = POT_ES_0975_Burr_expl, alpha = 0.025, B=0, version = 1)
   g[2,1]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Burr_expl, e = POT_ES_099_Burr_expl, alpha = 0.01, B=0, version = 1)
   g[3,1]<-k$pvalue_twosided_asymptotic
   
  
@@ -410,26 +414,26 @@ library(sandwich)
   excerd= as.matrix(ret<POT_VaR_099_DBurr_expl);
   d[3,2]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_DBurr_expl))+1; 
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, B=0, version = 3)
   e[1,2]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, B=0, version = 3)
   e[2,2]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, B=0, version = 3)
   e[3,2]<-k$pvalue_onesided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, B=0, version = 2)
   f[1,2]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, B=0, version = 2)
   f[2,2]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, B=0,  version = 2)
   f[3,2]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DBurr_expl, e = POT_ES_095_DBurr_expl, alpha = 0.05, B=0, version = 1)
   g[1,2]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DBurr_expl, e = POT_ES_0975_DBurr_expl, alpha = 0.025, B=0, version = 1)
   g[2,2]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DBurr_expl, e = POT_ES_099_DBurr_expl, alpha = 0.01, B=0, version = 1)
   g[3,2]<-k$pvalue_twosided_asymptotic
   
  
@@ -476,25 +480,25 @@ library(sandwich)
   d[3,5]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_Weibull_expl))+1; 
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, B=0, version = 3)
   e[1,5]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, B=0, version = 3)
   e[2,5]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, B=0, version = 3)
   e[3,5]<-k$pvalue_onesided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, B=0, version = 2)
   f[1,5]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, B=0, version = 2)
   f[2,5]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, B=0, version = 2)
   f[3,5]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_Weibull_expl, e = POT_ES_095_Weibull_expl, alpha = 0.05, B=0, version = 1)
   g[1,5]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_Weibull_expl, e = POT_ES_0975_Weibull_expl, alpha = 0.025, B=0, version = 1)
   g[2,5]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_Weibull_expl, e = POT_ES_099_Weibull_expl, alpha = 0.01, B=0, version = 1)
   g[3,5]<-k$pvalue_twosided_asymptotic
   
  
@@ -546,26 +550,26 @@ library(sandwich)
   d[3,6]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_DWeibull_expl))+1; 
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, B=0, version = 3)
   e[1,6]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, B=0, version = 3)
   e[2,6]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, B=0, version = 3)
   e[3,6]<-k$pvalue_onesided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, B=0, version = 2)
   f[1,6]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, B=0, version = 2)
   f[2,6]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, B=0, version = 2)
   f[3,6]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DWeibull_expl, e = POT_ES_095_DWeibull_expl, alpha = 0.05, B=0, version = 1)
   g[1,6]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DWeibull_expl, e = POT_ES_0975_DWeibull_expl, alpha = 0.025, B=0, version = 1)
   g[2,6]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DWeibull_expl, e = POT_ES_099_DWeibull_expl, alpha = 0.01, B=0, version = 1)
   g[3,6]<-k$pvalue_twosided_asymptotic
   
 
@@ -616,26 +620,26 @@ library(sandwich)
   d[3,3]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_GGamma_expl))+1; 
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, B=0, version = 3)
   e[1,3]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, B=0, version = 3)
   e[2,3]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, B=0, version = 3)
   e[3,3]<-k$pvalue_onesided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, B=0, version = 2)
   f[1,3]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, B=0, version = 2)
   f[2,3]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, B=0, version = 2)
   f[3,3]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_GGamma_expl, e = POT_ES_095_GGamma_expl, alpha = 0.05, B=0, version = 1)
   g[1,3]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_GGamma_expl, e = POT_ES_0975_GGamma_expl, alpha = 0.025, B=0, version = 1)
   g[2,3]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_GGamma_expl, e = POT_ES_099_GGamma_expl, alpha = 0.01, B=0, version = 1)
   g[3,3]<-k$pvalue_twosided_asymptotic
   
 
@@ -686,26 +690,26 @@ library(sandwich)
   d[3,4]<- sum((-ret*excerd)/(nrow(excerd)*0.01*POT_ES_099_DGGamma_expl))+1; 
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, B=0, version = 3)
   e[1,4]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, B=0, version = 3)
   e[2,4]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, B=0, version = 3)
   e[3,4]<-k$pvalue_onesided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, B=0, version = 2)
   f[1,4]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, B=0, version = 2)
   f[2,4]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, B=0, version = 2)
   f[3,4]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_095_DGGamma_expl, e = POT_ES_095_DGGamma_expl, alpha = 0.05, B=0, version = 1)
   g[1,4]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_0975_DGGamma_expl, e = POT_ES_0975_DGGamma_expl, alpha = 0.025, B=0, version = 1)
   g[2,4]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = POT_VaR_099_DGGamma_expl, e = POT_ES_099_DGGamma_expl, alpha = 0.01, B=0, version = 1)
   g[3,4]<-k$pvalue_twosided_asymptotic
   
   
@@ -740,27 +744,27 @@ library(sandwich)
   d[3,8]<- sum((-ret*excerd)/(nrow(excerd)*0.01*ES_099_apARCH_norm))+1; 
   
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, B=0, version = 3)
   e[1,8]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, B=0, version = 3)
   e[2,8]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, B=0, version = 3)
   e[3,8]<-k$pvalue_onesided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, B=0, version = 2)
   f[1,8]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, B=0, version = 2)
   f[2,8]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, B=0, version = 2)
   f[3,8]<-k$pvalue_twosided_asymptotic
   
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_norm, e = ES_095_apARCH_norm, alpha = 0.05, B=0, version = 1)
   g[1,8]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_norm, e = ES_0975_apARCH_norm, alpha = 0.025, B=0, version = 1)
   g[2,8]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_norm, e = ES_099_apARCH_norm, alpha = 0.01, B=0, version = 1)
   g[3,8]<-k$pvalue_twosided_asymptotic
   
   
@@ -776,25 +780,25 @@ library(sandwich)
   excerd= as.matrix(ret<VaR_099_sGARCH_norm);
   d[3,9]<- sum((-ret*excerd)/(nrow(excerd)*0.01*ES_099_sGARCH_norm))+1; 
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, B=0, version = 3)
   e[1,9]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, B=0, version = 3)
   e[2,9]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, B=0, version = 3)
   e[3,9]<-k$pvalue_onesided_asymptotic 
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, B=0, version = 2)
   f[1,9]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, B=0, version = 2)
   f[2,9]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, B=0, version = 2)
   f[3,9]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_norm, e = ES_095_sGARCH_norm, alpha = 0.05, B=0, version = 1)
   g[1,9]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_norm, e = ES_0975_sGARCH_norm, alpha = 0.025, B=0, version = 2)
   g[2,9]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_norm, e = ES_099_sGARCH_norm, alpha = 0.01, B=0, version = 1)
   g[3,9]<-k$pvalue_twosided_asymptotic
   
   c[1,10]<-stat(0.05, VaR_095_apARCH_sstd, ES_095_apARCH_sstd)
@@ -809,26 +813,26 @@ library(sandwich)
   excerd= as.matrix(ret<VaR_099_apARCH_sstd);
   d[3,10]<- sum((-ret*excerd)/(nrow(excerd)*0.01*ES_099_apARCH_sstd))+1; 
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, B=0, version = 3)
   e[1,10]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, B=0, version = 3)
   e[2,10]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, B=0, version = 3)
   e[3,10]<-k$pvalue_onesided_asymptotic   
 
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, B=0, version = 2)
   f[1,10]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, B=0, version = 2)
   f[2,10]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, B=0, version = 2)
   f[3,10]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = VaR_095_apARCH_sstd, e = ES_095_apARCH_sstd, alpha = 0.05, B=0, version = 1)
   g[1,10]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = VaR_0975_apARCH_sstd, e = ES_0975_apARCH_sstd, alpha = 0.025, B=0, version = 1)
   g[2,10]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = VaR_099_apARCH_sstd, e = ES_099_apARCH_sstd, alpha = 0.01, B=0, version = 1)
   g[3,10]<-k$pvalue_twosided_asymptotic
   
   c[1,11]<-stat(0.05, VaR_095_apARCH_sstd, ES_095_sGARCH_sstd)
@@ -843,26 +847,26 @@ library(sandwich)
   excerd= as.matrix(ret<VaR_099_sGARCH_sstd);
   d[3,11]<- sum((-ret*excerd)/(nrow(excerd)*0.01*ES_099_sGARCH_sstd))+1; 
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, version = 3)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, B=0, version = 3)
   e[1,11]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, version = 3)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, B=0, version = 3)
   e[2,11]<-k$pvalue_onesided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, version = 3)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, B=0, version = 3)
   e[3,11]<-k$pvalue_onesided_asymptotic   
   
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, version = 2)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, B=0, version = 2)
   f[1,11]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, version = 2)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, B=0, version = 2)
   f[2,11]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, version = 2)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, B=0, version = 2)
   f[3,11]<-k$pvalue_twosided_asymptotic
   
-  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, version = 1)
+  k = esr_backtest(r = ret, q = VaR_095_sGARCH_sstd, e = ES_095_sGARCH_sstd, alpha = 0.05, B=0, version = 1)
   g[1,11]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, version = 1)
+  k = esr_backtest(r = ret, q = VaR_0975_sGARCH_sstd, e = ES_0975_sGARCH_sstd, alpha = 0.025, B=0, version = 1)
   g[2,11]<-k$pvalue_twosided_asymptotic
-  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, version = 1)
+  k = esr_backtest(r = ret, q = VaR_099_sGARCH_sstd, e = ES_099_sGARCH_sstd, alpha = 0.01, B=0, version = 1)
   g[3,11]<-k$pvalue_twosided_asymptotic
   
   
@@ -1255,3 +1259,4 @@ end_time <- Sys.time()
 
 
 # end_time - start_time
+
