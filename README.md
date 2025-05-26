@@ -44,7 +44,7 @@ _Email:_ rodrigo.herrera@utalca.cl
   License: 16916856989 | User: Katarzyna Bień-Barkowska (SGH)
 
 - **R 4.4.3** with packages:
-  - `this.path`, `rugarch`, `esback`, `evd`, `readxl` (versions as of 1 April 2025)
+  - `parallel` `this.path`, `rugarch`, `esback`, `evd`, `readxl` (versions as of 1 April 2025)
 
 ---
 
